@@ -27,14 +27,17 @@ A local service discovery and review platform for the Dhi Qar governorate in Ira
 
 ## Screenshots
 
-<!-- Add your screenshots here -->
-| Home | Service Details | Categories |
-|:----:|:---------------:|:----------:|
-| ![Home](screenshots/home.png) | ![Details](screenshots/details.png) | ![Categories](screenshots/categories.png) |
+<p align="center">
+  <img src="screenshots/home.png" width="200" alt="Home"/>
+  <img src="screenshots/details.png" width="200" alt="Service Details"/>
+  <img src="screenshots/categories.png" width="200" alt="Categories"/>
+</p>
 
-| Search | Favorites | Profile |
-|:------:|:---------:|:-------:|
-| ![Search](screenshots/search.png) | ![Favorites](screenshots/favorites.png) | ![Profile](screenshots/profile.png) |
+<p align="center">
+  <img src="screenshots/profile.png" width="200" alt="Profile"/>
+  <img src="screenshots/favorites.png" width="200" alt="Favorites"/>
+  <img src="screenshots/settings.png" width="200" alt="Settings"/>
+</p>
 
 ## Tech Stack
 

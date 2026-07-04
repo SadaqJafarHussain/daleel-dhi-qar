@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +6,7 @@ import 'package:tour_guid/utils/app_localization.dart';
 import 'package:tour_guid/utils/app_icons.dart';
 import '../../models/category.dart' as cat_model;
 import '../../providers/category_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../utils/page_transitions.dart';
 import '../all_categories_screen.dart';
 import '../services_screen.dart';
@@ -14,11 +16,13 @@ import 'shimmer_loading.dart';
 class CategoriesSection extends StatefulWidget {
   final double width;
   final double height;
+  final String? customTitle;
 
   const CategoriesSection({
     super.key,
     required this.width,
     required this.height,
+    this.customTitle,
   });
 
   @override
@@ -40,18 +44,60 @@ class _CategoriesSectionState extends State<CategoriesSection> {
     ];
   }
 
-  IconData _getCategoryIcon(int index) {
-    final icons = [
-      Icons.restaurant_rounded,
-      Icons.hotel_rounded,
-      Icons.shopping_bag_rounded,
-      Icons.local_hospital_rounded,
-      Icons.school_rounded,
-      Icons.sports_soccer_rounded,
-      Icons.spa_rounded,
-      Icons.local_gas_station_rounded,
-    ];
-    return icons[index % icons.length];
+  Widget _buildCategoryIconWidget(String icon, List<Color> gradient, double size) {
+    final isUrl = icon.startsWith('http://') || icon.startsWith('https://');
+    final decoration = BoxDecoration(
+      gradient: LinearGradient(
+        colors: gradient,
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(18),
+      boxShadow: [
+        BoxShadow(
+          color: gradient[0].withOpacity(0.35),
+          blurRadius: 10,
+          offset: const Offset(0, 5),
+        ),
+      ],
+    );
+
+    if (isUrl) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: decoration,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: CachedNetworkImage(
+            imageUrl: icon,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: (_, __) => const SizedBox.shrink(),
+            errorWidget: (_, __, ___) => const Icon(Icons.category_rounded, color: Colors.white),
+          ),
+        ),
+      );
+    } else if (icon.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: decoration,
+        child: Center(
+          child: Text(icon, style: TextStyle(fontSize: size * 0.45)),
+        ),
+      );
+    } else {
+      return Container(
+        width: size,
+        height: size,
+        decoration: decoration,
+        child: Center(
+          child: Icon(Icons.category_rounded, color: Colors.white, size: size * 0.45),
+        ),
+      );
+    }
   }
 
   @override
@@ -87,7 +133,7 @@ class _CategoriesSectionState extends State<CategoriesSection> {
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: w * 0.045),
                   child: SectionHeader(
-                    title: loc.t("categories_title"),
+                    title: widget.customTitle ?? loc.t("categories_title"),
                     onTap: () {},
                   ),
                 ),
@@ -117,7 +163,7 @@ class _CategoriesSectionState extends State<CategoriesSection> {
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: w * 0.045),
                 child: SectionHeader(
-                  title: loc.t("categories_title"),
+                  title: widget.customTitle ?? loc.t("categories_title"),
                   onTap: () {
                     Navigator.push(
                       context,
@@ -145,7 +191,6 @@ class _CategoriesSectionState extends State<CategoriesSection> {
                       context,
                       category,
                       gradient,
-                      index,
                       iconSize,
                     );
                   },
@@ -190,10 +235,10 @@ class _CategoriesSectionState extends State<CategoriesSection> {
     BuildContext context,
     cat_model.Category category,
     List<Color> gradient,
-    int index,
     double iconSize,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isAr = context.read<LanguageProvider>().isArabic;
 
     return GestureDetector(
       onTap: () {
@@ -203,7 +248,7 @@ class _CategoriesSectionState extends State<CategoriesSection> {
           PageTransitions.scaleUp(
             page: ServicesScreen.fromCategory(
               categoryId: category.id,
-              categoryName: category.name,
+              categoryName: category.localizedName(isAr),
             ),
           ),
         );
@@ -214,26 +259,13 @@ class _CategoriesSectionState extends State<CategoriesSection> {
           mainAxisSize: MainAxisSize.min,
           children: [
             // Category icon container
-            AppIcon.gradient(
-              icon: _getCategoryIcon(index),
-              colors: gradient,
-              size: iconSize * 0.45,
-              containerSize: iconSize,
-              borderRadius: 18,
-              shadow: [
-                BoxShadow(
-                  color: gradient[0].withOpacity(0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 5),
-                ),
-              ],
-            ),
+            _buildCategoryIconWidget(category.icon, gradient, iconSize),
             const SizedBox(height: 10),
             // Category name - full text with wrapping
             SizedBox(
               width: 80,
               child: Text(
-                category.name,
+                category.localizedName(isAr),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.visible,

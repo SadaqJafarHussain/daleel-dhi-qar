@@ -23,6 +23,10 @@ class SearchProvider with ChangeNotifier {
   double _searchRadius = 10.0;
   Position? _userLocation;
 
+  // Sort & limit (set from AppConfigProvider)
+  String _defaultSort = 'rating';
+  int    _resultsLimit = 0;
+
   // Getters
   List<Service> get filteredServices => _filteredServices;
   String get searchQuery => _searchQuery;
@@ -35,13 +39,35 @@ class SearchProvider with ChangeNotifier {
   bool get useDistanceFilter => _useDistanceFilter;
   double get searchRadius => _searchRadius;
 
-  // ✅ Initialize with all services
-  void initializeServices(List<Service> services, Position? userLocation) {
+  // ✅ Initialize with all services + optional config values
+  void initializeServices(
+    List<Service> services,
+    Position? userLocation, {
+    String defaultSort = 'rating',
+    double initialRadius = 10.0,
+    int resultsLimit = 0,
+  }) {
     _allServices = services;
     _userLocation = userLocation;
-    _filteredServices = services;
-    debugPrint('SearchProvider: Initialized with ${services.length} services');
-    notifyListeners();
+    _defaultSort = defaultSort;
+    _searchRadius = initialRadius;
+    _resultsLimit = resultsLimit;
+    debugPrint('SearchProvider: Initialized with ${services.length} services, sort=$defaultSort, radius=${initialRadius}km, limit=$resultsLimit');
+    _applyFilters(); // applies sort + limit immediately
+  }
+
+  // Update sort/limit from config without re-fetching services
+  void updateSearchConfig({String? defaultSort, int? resultsLimit}) {
+    bool changed = false;
+    if (defaultSort != null && defaultSort != _defaultSort) {
+      _defaultSort = defaultSort;
+      changed = true;
+    }
+    if (resultsLimit != null && resultsLimit != _resultsLimit) {
+      _resultsLimit = resultsLimit;
+      changed = true;
+    }
+    if (changed) _applyFilters();
   }
 
   // ✅ Update search query - REAL-TIME FILTERING
@@ -136,6 +162,32 @@ class SearchProvider with ChangeNotifier {
       results.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
 
       debugPrint('SearchProvider: After distance filter: ${results.length} results');
+    }
+
+    // 5. Apply sort (only when not already sorted by distance)
+    if (!_useDistanceFilter) {
+      switch (_defaultSort) {
+        case 'rating':
+          results.sort((a, b) => (b.averageRating ?? 0.0).compareTo(a.averageRating ?? 0.0));
+          break;
+        case 'newest':
+          results.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          break;
+        case 'nearest':
+          if (_userLocation != null) {
+            results.sort((a, b) {
+              final da = _calculateDistance(_userLocation!.latitude, _userLocation!.longitude, a.lat, a.lng);
+              final db = _calculateDistance(_userLocation!.latitude, _userLocation!.longitude, b.lat, b.lng);
+              return da.compareTo(db);
+            });
+          }
+          break;
+      }
+    }
+
+    // 6. Apply results limit (0 = unlimited)
+    if (_resultsLimit > 0 && results.length > _resultsLimit) {
+      results = results.take(_resultsLimit).toList();
     }
 
     _filteredServices = results;

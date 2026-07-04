@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/auth_provider.dart';
 import '../utils/app_localization.dart';
 import 'main_screen.dart';
@@ -30,62 +32,29 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
   final Set<String> _selectedInterests = {};
   String? _selectedOccupation;
 
-  // Current step
+  // Current step (0-3, some may be skipped if hidden)
   int _currentStep = 0;
-  final int _totalSteps = 4;
 
   bool _isLoading = false;
 
-  // Iraqi cities - keys for localization
-  final List<String> _iraqiCityKeys = [
-    'city_baghdad',
-    'city_basra',
-    'city_mosul',
-    'city_erbil',
-    'city_najaf',
-    'city_karbala',
-    'city_nasiriyah',
-    'city_sulaymaniyah',
-    'city_kirkuk',
-    'city_hilla',
-    'city_diwaniyah',
-    'city_kut',
-    'city_samawah',
-    'city_amarah',
-    'city_ramadi',
-    'city_baqubah',
-    'city_tikrit',
-    'city_duhok',
-  ];
+  // Loaded from DB
+  List<Map<String, String>> _cityItems        = [];
+  List<Map<String, dynamic>> _availableInterests = [];
+  List<String> _occupationKeys                 = [];
 
-  // Interests for ad targeting - using localization keys
-  final List<Map<String, dynamic>> _availableInterests = [
-    {'id': 'restaurants', 'nameKey': 'interest_restaurants', 'icon': Icons.restaurant_rounded},
-    {'id': 'hotels', 'nameKey': 'interest_hotels', 'icon': Icons.hotel_rounded},
-    {'id': 'tourism', 'nameKey': 'interest_tourism', 'icon': Icons.museum_rounded},
-    {'id': 'shopping', 'nameKey': 'interest_shopping', 'icon': Icons.shopping_bag_rounded},
-    {'id': 'healthcare', 'nameKey': 'interest_healthcare', 'icon': Icons.local_hospital_rounded},
-    {'id': 'education', 'nameKey': 'interest_education', 'icon': Icons.school_rounded},
-    {'id': 'sports', 'nameKey': 'interest_sports', 'icon': Icons.sports_soccer_rounded},
-    {'id': 'entertainment', 'nameKey': 'interest_entertainment', 'icon': Icons.movie_rounded},
-    {'id': 'automotive', 'nameKey': 'interest_automotive', 'icon': Icons.directions_car_rounded},
-    {'id': 'real_estate', 'nameKey': 'interest_real_estate', 'icon': Icons.home_rounded},
-  ];
-
-  // Occupations - using localization keys
-  final List<String> _occupationKeys = [
-    'occupation_student',
-    'occupation_government',
-    'occupation_private',
-    'occupation_freelance',
-    'occupation_doctor',
-    'occupation_engineer',
-    'occupation_teacher',
-    'occupation_merchant',
-    'occupation_retired',
-    'occupation_housewife',
-    'occupation_other',
-  ];
+  // Fallback icons for interests (matched by key)
+  static const Map<String, IconData> _interestIcons = {
+    'restaurants':   Icons.restaurant_rounded,
+    'hotels':        Icons.hotel_rounded,
+    'tourism':       Icons.museum_rounded,
+    'shopping':      Icons.shopping_bag_rounded,
+    'healthcare':    Icons.local_hospital_rounded,
+    'education':     Icons.school_rounded,
+    'sports':        Icons.sports_soccer_rounded,
+    'entertainment': Icons.movie_rounded,
+    'automotive':    Icons.directions_car_rounded,
+    'real_estate':   Icons.home_rounded,
+  };
 
   @override
   void initState() {
@@ -98,9 +67,17 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
     _animationController.forward();
+    _fetchLookups();
 
-    // Load existing user data if available
+    // Initialize step and load existing user data
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final cfg = Provider.of<AppConfigProvider>(context, listen: false);
+      final visible = _visibleStepsList(cfg);
+      if (visible.isEmpty) { _saveProfile(); return; }
+      if (!visible.contains(_currentStep)) {
+        setState(() { _currentStep = visible.first; });
+      }
       final user = Provider.of<AuthProvider>(context, listen: false).user;
       if (user != null) {
         setState(() {
@@ -122,6 +99,48 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     super.dispose();
   }
 
+  Future<void> _fetchLookups() async {
+    try {
+      final db = Supabase.instance.client;
+      final results = await Future.wait([
+        db.from('lookups').select('key, label_ar').eq('type', 'city').eq('active', true).order('sort_order'),
+        db.from('lookups').select('key, label_ar').eq('type', 'interest').eq('active', true).order('sort_order'),
+        db.from('lookups').select('key, label_ar').eq('type', 'occupation').eq('active', true).order('sort_order'),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _cityItems = (results[0] as List).map<Map<String, String>>((r) =>
+          {'key': r['key'] as String, 'label': r['label_ar'] as String}).toList();
+
+        _availableInterests = (results[1] as List).map<Map<String, dynamic>>((r) => {
+          'id':      r['key'] as String,
+          'nameKey': r['key'] as String,
+          'label':   r['label_ar'] as String,
+          'icon':    _interestIcons[r['key']] ?? Icons.star_rounded,
+        }).toList();
+
+        _occupationKeys = (results[2] as List).map<String>((r) => r['key'] as String).toList();
+      });
+    } catch (_) {
+      // Silently fall back to empty lists; user can retry
+    }
+  }
+
+  // ── Step visibility ───────────────────────────────────────────────────────
+  bool _isStepVisible(int step, AppConfigProvider cfg) {
+    switch (step) {
+      case 0: return cfg.isFieldVisible('gender');
+      case 1: return cfg.isFieldVisible('birth_date');
+      case 2: return cfg.isFieldVisible('city') || cfg.isFieldVisible('occupation');
+      case 3: return cfg.isFieldVisible('interests');
+      default: return true;
+    }
+  }
+
+  List<int> _visibleStepsList(AppConfigProvider cfg) =>
+      [0, 1, 2, 3].where((s) => _isStepVisible(s, cfg)).toList();
+
   Future<void> _selectBirthDate() async {
     final now = DateTime.now();
     final initialDate = _selectedBirthDate ?? DateTime(now.year - 25, 1, 1);
@@ -131,7 +150,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
       initialDate: initialDate,
       firstDate: DateTime(1920),
       lastDate: DateTime(now.year - 10), // Must be at least 10 years old
-      locale: const Locale('ar'),
+      locale: Localizations.localeOf(context),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -154,22 +173,38 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     }
   }
 
+  bool _canProceed() {
+    final cfg = context.read<AppConfigProvider>();
+    switch (_currentStep) {
+      case 0: return !cfg.isFieldRequired('gender') || _selectedGender != null;
+      case 1: return !cfg.isFieldRequired('birth_date') || _selectedBirthDate != null;
+      case 2: {
+        final cityOk = !cfg.isFieldVisible('city') || !cfg.isFieldRequired('city') || _selectedCity != null;
+        final occOk  = !cfg.isFieldVisible('occupation') || !cfg.isFieldRequired('occupation') || _selectedOccupation != null;
+        return cityOk && occOk;
+      }
+      case 3: return !cfg.isFieldRequired('interests') || _selectedInterests.length >= 3;
+      default: return true;
+    }
+  }
+
   void _nextStep() {
-    if (_currentStep < _totalSteps - 1) {
-      setState(() {
-        _currentStep++;
-      });
-    } else {
+    if (!_canProceed()) return;
+    final cfg = context.read<AppConfigProvider>();
+    int next = _currentStep + 1;
+    while (next < 4 && !_isStepVisible(next, cfg)) next++;
+    if (next >= 4) {
       _saveProfile();
+    } else {
+      setState(() { _currentStep = next; });
     }
   }
 
   void _previousStep() {
-    if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
-    }
+    final cfg = context.read<AppConfigProvider>();
+    int prev = _currentStep - 1;
+    while (prev >= 0 && !_isStepVisible(prev, cfg)) prev--;
+    if (prev >= 0) setState(() { _currentStep = prev; });
   }
 
   Future<void> _saveProfile() async {
@@ -191,12 +226,24 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
           profileCompleted: true,
         );
 
-        await authProvider.updateUserProfile(updatedUser);
+        final success = await authProvider.updateUserProfile(updatedUser);
 
-        if (mounted) {
+        if (!mounted) return;
+
+        if (success) {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const MainScreen()),
+          );
+        } else {
+          final locale = AppLocalizations.of(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(locale.t('error_saving_profile')),
+              backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
           );
         }
       }
@@ -228,6 +275,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     final w = size.width;
     final h = size.height;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cfg = context.watch<AppConfigProvider>();
+    final visibleSteps = _visibleStepsList(cfg);
+    final stepIndex = visibleSteps.isEmpty
+        ? 0
+        : visibleSteps.indexOf(_currentStep).clamp(0, visibleSteps.length - 1);
+    final isLastStep  = visibleSteps.isEmpty || stepIndex == visibleSteps.length - 1;
+    final isFirstStep = stepIndex == 0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -236,10 +290,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
           opacity: _fadeAnimation,
           child: Column(
             children: [
-              // Header with progress
-              _buildHeader(w, h, isDark),
-
-              // Content
+              _buildHeader(w, h, isDark, visibleSteps, stepIndex),
               Expanded(
                 child: SingleChildScrollView(
                   padding: EdgeInsets.symmetric(horizontal: w * 0.06),
@@ -249,9 +300,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                   ),
                 ),
               ),
-
-              // Bottom buttons
-              _buildBottomButtons(w, h, isDark),
+              _buildBottomButtons(w, h, isDark, isFirstStep: isFirstStep, isLastStep: isLastStep),
             ],
           ),
         ),
@@ -259,13 +308,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     );
   }
 
-  Widget _buildHeader(double w, double h, bool isDark) {
+  Widget _buildHeader(double w, double h, bool isDark, List<int> visibleSteps, int stepIndex) {
     final locale = AppLocalizations.of(context);
     return Container(
       padding: EdgeInsets.all(w * 0.06),
       child: Column(
         children: [
-          // Title
           Text(
             locale.t('complete_profile'),
             style: TextStyle(
@@ -274,9 +322,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
               color: isDark ? Colors.white : const Color(0xFF1A1A2E),
             ),
           ),
-
           SizedBox(height: h * 0.01),
-
           Text(
             locale.t('complete_profile_subtitle'),
             style: TextStyle(
@@ -285,23 +331,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
             ),
             textAlign: TextAlign.center,
           ),
-
           SizedBox(height: h * 0.03),
-
-          // Progress indicator
-          _buildProgressIndicator(w, isDark),
+          _buildProgressIndicator(w, isDark, visibleSteps, stepIndex),
         ],
       ),
     );
   }
 
-  Widget _buildProgressIndicator(double w, bool isDark) {
+  Widget _buildProgressIndicator(double w, bool isDark, List<int> visibleSteps, int stepIndex) {
+    final total = visibleSteps.isEmpty ? 1 : visibleSteps.length;
     return Row(
-      children: List.generate(_totalSteps, (index) {
-        final isActive = index <= _currentStep;
+      children: List.generate(total, (index) {
+        final isActive = index <= stepIndex;
         return Expanded(
           child: Container(
-            margin: EdgeInsets.symmetric(horizontal: 4),
+            margin: const EdgeInsets.symmetric(horizontal: 4),
             height: 4,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(2),
@@ -499,11 +543,11 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                 color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
               ),
               dropdownColor: isDark ? const Color(0xFF2A2A3E) : Colors.white,
-              items: _iraqiCityKeys.map((cityKey) {
+              items: _cityItems.map((city) {
                 return DropdownMenuItem<String>(
-                  value: cityKey,
+                  value: city['key'],
                   child: Text(
-                    locale.t(cityKey),
+                    city['label']!,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF1A1A2E),
                     ),
@@ -555,10 +599,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
               ),
               dropdownColor: isDark ? const Color(0xFF2A2A3E) : Colors.white,
               items: _occupationKeys.map((occupationKey) {
+                // Use DB label from interests list if available, fallback to localization
+                final label = locale.t(occupationKey);
                 return DropdownMenuItem<String>(
                   value: occupationKey,
                   child: Text(
-                    locale.t(occupationKey),
+                    label,
                     style: TextStyle(
                       color: isDark ? Colors.white : const Color(0xFF1A1A2E),
                     ),
@@ -588,10 +634,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
         _buildStepTitle(locale.t('what_are_your_interests'), Icons.favorite_rounded),
         SizedBox(height: h * 0.01),
         Text(
-          locale.t('select_interests'),
+          locale.t('select_interests_min3'),
           style: TextStyle(
             fontSize: 13,
-            color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+            color: _selectedInterests.length < 3
+                ? Colors.orange.shade700
+                : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
           ),
         ),
         SizedBox(height: h * 0.03),
@@ -648,7 +696,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      locale.t(interest['nameKey'] as String),
+                      (interest['label'] as String?) ?? locale.t('interest_${interest['id']}'),
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
@@ -796,7 +844,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
     );
   }
 
-  Widget _buildBottomButtons(double w, double h, bool isDark) {
+  Widget _buildBottomButtons(double w, double h, bool isDark, {required bool isFirstStep, required bool isLastStep}) {
     final locale = AppLocalizations.of(context);
     return Container(
       padding: EdgeInsets.all(w * 0.06),
@@ -813,7 +861,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
       child: Row(
         children: [
           // Back button
-          if (_currentStep > 0)
+          if (!isFirstStep)
             Expanded(
               child: OutlinedButton(
                 onPressed: _previousStep,
@@ -837,13 +885,13 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
               ),
             ),
 
-          if (_currentStep > 0) SizedBox(width: w * 0.04),
+          if (!isFirstStep) SizedBox(width: w * 0.04),
 
           // Next/Save button
           Expanded(
             flex: _currentStep == 0 ? 1 : 1,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _nextStep,
+              onPressed: _isLoading || !_canProceed() ? null : _nextStep,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 padding: EdgeInsets.symmetric(vertical: h * 0.02),
@@ -861,7 +909,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen>
                       ),
                     )
                   : Text(
-                      _currentStep == _totalSteps - 1 ? locale.t('finish') : locale.t('next'),
+                      isLastStep ? locale.t('finish') : locale.t('next'),
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

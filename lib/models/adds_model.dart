@@ -129,6 +129,7 @@ class AdvModel {
   final String? gradientEnd;
   final bool isSponsored; // Show "Sponsored" badge
   final AdTargeting targeting; // Targeting criteria
+  final int? clicks; // Click count (for admin analytics)
 
   AdvModel({
     required this.id,
@@ -142,6 +143,7 @@ class AdvModel {
     this.gradientStart,
     this.gradientEnd,
     this.isSponsored = false,
+    this.clicks,
     AdTargeting? targeting,
   }) : targeting = targeting ?? AdTargeting();
 
@@ -179,6 +181,7 @@ class AdvModel {
       gradientStart: json['gradient_start'],
       gradientEnd: json['gradient_end'],
       isSponsored: json['is_sponsored'] == true || json['is_sponsored'] == 1,
+      clicks: json['clicks'] as int?,
       targeting: AdTargeting.fromJson(json['targeting']),
     );
   }

@@ -6,6 +6,7 @@ import '../models/review_model.dart';
 import '../models/favorite.dart';
 import '../models/subcategory_model.dart';
 import 'supabase_service.dart';
+export '../models/service_model.dart' show ServiceFile;
 
 /// Service for managing real-time subscriptions to Supabase
 class RealtimeService {
@@ -481,6 +482,308 @@ class RealtimeService {
   /// Unsubscribe from profiles channel
   void unsubscribeFromProfiles() {
     _unsubscribe('profiles_verification');
+  }
+
+  // ========================================
+  // SERVICE FILES SUBSCRIPTION
+  // ========================================
+
+  /// Subscribe to service_files changes for a specific service (admin photo replace)
+  void subscribeToServiceFiles({
+    required int serviceId,
+    required void Function(ServiceFile file) onUpdate,
+    required void Function(ServiceFile file) onInsert,
+    required void Function(int fileId) onDelete,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    final channelName = 'service_files_$serviceId';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final filter = PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'service_id',
+      value: serviceId,
+    );
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'service_files',
+          filter: filter,
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files updated for service $serviceId');
+            try {
+              final file = ServiceFile.fromJson(payload.newRecord);
+              onUpdate(file);
+            } catch (e) {
+              debugPrint('RealtimeService: Error parsing service_files update: $e');
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'service_files',
+          filter: filter,
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files inserted for service $serviceId');
+            try {
+              final file = ServiceFile.fromJson(payload.newRecord);
+              onInsert(file);
+            } catch (e) {
+              debugPrint('RealtimeService: Error parsing service_files insert: $e');
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'service_files',
+          filter: filter,
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files deleted for service $serviceId');
+            final id = payload.oldRecord['id'];
+            if (id != null) {
+              onDelete(int.tryParse(id.toString()) ?? 0);
+            }
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to service_files for service $serviceId');
+  }
+
+  /// Unsubscribe from service_files channel
+  void unsubscribeFromServiceFiles(int serviceId) {
+    _unsubscribe('service_files_$serviceId');
+  }
+
+  /// Subscribe to ALL service_files changes globally (for admin image updates)
+  void subscribeToAllServiceFiles({
+    required void Function(int serviceId, ServiceFile file) onUpdate,
+    required void Function(int serviceId, ServiceFile file) onInsert,
+    required void Function(int serviceId, int fileId) onDelete,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    const channelName = 'service_files_all';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'service_files',
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files global update');
+            try {
+              final file = ServiceFile.fromJson(payload.newRecord);
+              onUpdate(file.serviceId, file);
+            } catch (e) {
+              debugPrint('RealtimeService: Error parsing service_files global update: $e');
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'service_files',
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files global insert');
+            try {
+              final file = ServiceFile.fromJson(payload.newRecord);
+              onInsert(file.serviceId, file);
+            } catch (e) {
+              debugPrint('RealtimeService: Error parsing service_files global insert: $e');
+            }
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.delete,
+          schema: 'public',
+          table: 'service_files',
+          callback: (payload) {
+            debugPrint('RealtimeService: service_files global delete');
+            final fileId = payload.oldRecord['id'];
+            final serviceId = payload.oldRecord['service_id'];
+            if (fileId != null && serviceId != null) {
+              onDelete(
+                int.tryParse(serviceId.toString()) ?? 0,
+                int.tryParse(fileId.toString()) ?? 0,
+              );
+            }
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to all service_files changes');
+  }
+
+  /// Unsubscribe from global service_files channel
+  void unsubscribeFromAllServiceFiles() {
+    _unsubscribe('service_files_all');
+  }
+
+  // ========================================
+  // HOME SECTIONS SUBSCRIPTION
+  // ========================================
+
+  /// Subscribe to home_sections table changes (admin-controlled sections)
+  void subscribeToHomeSections({
+    required void Function() onAnyChange,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    const channelName = 'home_sections_all';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'home_sections',
+          callback: (payload) {
+            debugPrint('RealtimeService: home_sections changed');
+            onAnyChange();
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to home_sections');
+  }
+
+  /// Unsubscribe from home_sections channel
+  void unsubscribeFromHomeSections() {
+    _unsubscribe('home_sections_all');
+  }
+
+  // ========================================
+  // LOOKUPS SUBSCRIPTION
+  // ========================================
+
+  /// Subscribe to lookups table changes (e.g. home_content updates from admin)
+  void subscribeToLookups({
+    required void Function() onAnyChange,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    const channelName = 'lookups_all';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'lookups',
+          callback: (payload) {
+            debugPrint('RealtimeService: Lookups changed');
+            onAnyChange();
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to lookups');
+  }
+
+  /// Unsubscribe from lookups channel
+  void unsubscribeFromLookups() {
+    _unsubscribe('lookups_all');
+  }
+
+  // ========================================
+  // APP CONFIG SUBSCRIPTION
+  // ========================================
+
+  /// Subscribe to app_config table changes (contact, social, feature flags, etc.)
+  void subscribeToAppConfig({
+    required void Function() onAnyChange,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    const channelName = 'app_config_all';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'app_config',
+          callback: (payload) {
+            debugPrint('RealtimeService: app_config changed');
+            onAnyChange();
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to app_config');
+  }
+
+  /// Unsubscribe from app_config channel
+  void unsubscribeFromAppConfig() {
+    _unsubscribe('app_config_all');
+  }
+
+  // ========================================
+  // HOME SECTIONS CONFIG SUBSCRIPTION
+  // ========================================
+
+  void subscribeToHomeSectionsConfig({
+    required void Function() onAnyChange,
+  }) {
+    if (!AppConfig.enableRealtime) return;
+
+    const channelName = 'home_sections_config_all';
+
+    if (_channels.containsKey(channelName)) {
+      _unsubscribe(channelName);
+    }
+
+    final channel = _supabase.client
+        .channel(channelName)
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'home_sections_config',
+          callback: (payload) {
+            debugPrint('RealtimeService: home_sections_config changed');
+            onAnyChange();
+          },
+        )
+        .subscribe();
+
+    _channels[channelName] = channel;
+    debugPrint('RealtimeService: Subscribed to home_sections_config');
+  }
+
+  void unsubscribeFromHomeSectionsConfig() {
+    _unsubscribe('home_sections_config_all');
   }
 
   // ========================================

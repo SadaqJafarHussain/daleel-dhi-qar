@@ -1,11 +1,12 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/screens/services_screen.dart';
-import 'package:tour_guid/screens/widgets/service_image_widget.dart';
 import 'package:tour_guid/utils/app_icons.dart';
 import 'package:tour_guid/utils/app_localization.dart';
 import '../../models/category.dart' as cat_model;
 import '../../providers/category_provider.dart';
+import '../../providers/language_provider.dart';
 
 class AllCategoriesScreen extends StatelessWidget {
   const AllCategoriesScreen({super.key});
@@ -71,11 +72,46 @@ class AllCategoriesScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildCategoryIcon(String icon, Color color) {
+    final isUrl = icon.startsWith('http://') || icon.startsWith('https://');
+    if (isUrl) {
+      return CachedNetworkImage(
+        imageUrl: icon,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => Container(color: color.withOpacity(0.08)),
+        errorWidget: (_, __, ___) => _iconFallback(color),
+      );
+    } else if (icon.isNotEmpty) {
+      return Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: color.withOpacity(0.08),
+        child: Center(child: Text(icon, style: const TextStyle(fontSize: 40))),
+      );
+    } else {
+      return _iconFallback(color);
+    }
+  }
+
+  Widget _iconFallback(Color color) {
+    return Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: color.withOpacity(0.08),
+      child: Center(
+        child: Icon(Icons.category_rounded, color: color.withOpacity(0.5), size: 36),
+      ),
+    );
+  }
+
   Widget _buildCategoryCard(
       BuildContext context,
       cat_model.Category category,
       Color color,
       ) {
+    final isAr = context.read<LanguageProvider>().isArabic;
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -83,7 +119,7 @@ class AllCategoriesScreen extends StatelessWidget {
           MaterialPageRoute(
             builder: (context) => ServicesScreen.fromCategory(
               categoryId: category.id,
-              categoryName: category.name,
+              categoryName: category.localizedName(isAr),
             ),
           ),
         );
@@ -100,25 +136,14 @@ class AllCategoriesScreen extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: color.withOpacity(0.3)),
-                  ),
-                  child: ServiceImageWidget(
-                    imageUrl: category.image,
-                    fit: BoxFit.fill,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+                child: _buildCategoryIcon(category.icon, color),
               ),
             ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6.0),
               child: Text(
-                category.name,
+                category.localizedName(isAr),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,

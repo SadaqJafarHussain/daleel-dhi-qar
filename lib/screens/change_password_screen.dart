@@ -21,6 +21,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  String? _currentPasswordError;
 
   @override
   void dispose() {
@@ -31,38 +32,46 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   }
 
   Future<void> _changePassword() async {
+    // Clear any previous inline error before re-validating
+    setState(() => _currentPasswordError = null);
+
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     final authService = SupabaseAuthService();
-    final success = await authService.updatePassword(
+    final error = await authService.updatePassword(
       currentPassword: _currentPasswordController.text,
       newPassword: _newPasswordController.text,
     );
 
+    if (!mounted) return;
+
     setState(() => _isLoading = false);
 
-    if (mounted) {
-      final loc = AppLocalizations.of(context);
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.t('password_changed')),
-            backgroundColor: Colors.green,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.pop(context);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(loc.t('password_change_failed')),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+    final loc = AppLocalizations.of(context);
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.t('password_changed')),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context);
+    } else if (error == 'wrong_current_password') {
+      // Show inline error on the current password field
+      setState(() => _currentPasswordError = loc.t('wrong_current_password'));
+      _formKey.currentState!.validate();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(loc.t('password_change_failed')),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -145,9 +154,17 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onToggle: () {
                   setState(() => _obscureCurrentPassword = !_obscureCurrentPassword);
                 },
+                onChanged: (_) {
+                  if (_currentPasswordError != null) {
+                    setState(() => _currentPasswordError = null);
+                  }
+                },
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return loc.t('required_field');
+                  }
+                  if (_currentPasswordError != null) {
+                    return _currentPasswordError;
                   }
                   return null;
                 },
@@ -262,6 +279,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     required bool obscure,
     required VoidCallback onToggle,
     required String? Function(String?) validator,
+    ValueChanged<String>? onChanged,
   }) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -269,7 +287,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       controller: controller,
       obscureText: obscure,
       validator: validator,
-      onChanged: (_) => setState(() {}),
+      onChanged: (v) {
+        setState(() {});
+        onChanged?.call(v);
+      },
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(

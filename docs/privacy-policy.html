@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>سياسة الخصوصية - دليل ذي قار | Privacy Policy - Daleel Dhi Qar</title>
+  <style>
+    :root {
+      --primary: #1a56db;
+      --primary-dark: #1e429f;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --accent: #eff6ff;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', 'Cairo', Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.8;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+      color: #fff;
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+    header h1 { font-size: 2rem; font-weight: 800; margin-bottom: 6px; }
+    header p  { font-size: 1rem; opacity: .85; }
+
+    /* ── Language tabs ── */
+    .lang-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 20px;
+      background: var(--primary-dark);
+    }
+    .lang-tabs button {
+      padding: 8px 28px;
+      border: 2px solid #fff;
+      border-radius: 9999px;
+      background: transparent;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .lang-tabs button.active {
+      background: #fff;
+      color: var(--primary-dark);
+    }
+
+    /* ── Content ── */
+    .container {
+      max-width: 860px;
+      margin: 32px auto;
+      padding: 0 20px 60px;
+    }
+
+    .content-section { display: none; }
+    .content-section.active { display: block; }
+
+    /* ── Info bar ── */
+    .meta-bar {
+      background: var(--accent);
+      border: 1px solid #bfdbfe;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      font-size: .9rem;
+      color: var(--primary-dark);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .meta-bar span { display: flex; align-items: center; gap: 6px; }
+
+    /* ── Sections ── */
+    .section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .section-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+    .section h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+    }
+    .section p  { color: #374151; margin-bottom: 10px; }
+    .section p:last-child { margin-bottom: 0; }
+
+    ul.data-list {
+      list-style: none;
+      padding: 0;
+      margin: 12px 0 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    ul.data-list li {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    ul.data-list li::before { content: "•"; color: var(--primary); font-weight: 900; font-size: 1.1rem; }
+
+    ul.plain-list {
+      padding-right: 20px;
+      margin: 10px 0 0;
+    }
+    ul.plain-list li { margin-bottom: 8px; color: #374151; }
+
+    /* ── Third party table ── */
+    .table-wrap { overflow-x: auto; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th {
+      background: var(--accent);
+      color: var(--primary-dark);
+      padding: 10px 14px;
+      text-align: right;
+      font-weight: 700;
+      border-bottom: 2px solid #bfdbfe;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #374151;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: var(--bg); }
+
+    /* ── Highlight box ── */
+    .highlight {
+      background: #fef3c7;
+      border-right: 4px solid #f59e0b;
+      border-radius: 0 8px 8px 0;
+      padding: 14px 18px;
+      margin: 14px 0;
+      font-size: .93rem;
+      color: #92400e;
+    }
+    [lang="en"] .highlight { border-right: none; border-left: 4px solid #f59e0b; border-radius: 8px 0 0 8px; }
+
+    /* ── Contact ── */
+    .contact-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .contact-item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      flex: 1 1 200px;
+      font-size: .9rem;
+    }
+    .contact-item strong { display: block; color: var(--primary-dark); margin-bottom: 2px; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: .85rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── LTR override for English section ── */
+    #en {
+      direction: ltr;
+      text-align: left;
+    }
+    #en th { text-align: left; }
+    #en ul.plain-list { padding-left: 20px; padding-right: 0; }
+    #en .highlight { border-left: 4px solid #f59e0b; border-right: none; border-radius: 8px 0 0 8px; }
+
+    @media (max-width: 600px) {
+      .section { padding: 20px 18px; }
+      header h1 { font-size: 1.5rem; }
+      ul.data-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🔒 سياسة الخصوصية | Privacy Policy</h1>
+  <p>دليل ذي قار &nbsp;·&nbsp; Daleel Dhi Qar</p>
+</header>
+
+<div class="lang-tabs">
+  <button class="active" onclick="switchLang('ar', this)">العربية</button>
+  <button onclick="switchLang('en', this)">English</button>
+</div>
+
+<!-- ══════════════════ ARABIC ══════════════════ -->
+<div id="ar" class="content-section active">
+  <div class="container">
+
+    <div class="meta-bar">
+      <span>📅 تاريخ النفاذ: 4 يوليو 2026</span>
+      <span>🔄 آخر تحديث: 4 يوليو 2026</span>
+      <span>📱 التطبيق: دليل ذي قار</span>
+    </div>
+
+    <!-- 1. المقدمة -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📋</div>
+        <h2>1. المقدمة</h2>
+      </div>
+      <p>
+        مرحباً بك في تطبيق <strong>دليل ذي قار</strong>، منصة اكتشاف الخدمات المحلية في محافظة ذي قار، العراق.
+        نحن ملتزمون بحماية خصوصيتك وبياناتك الشخصية. توضّح هذه السياسة ما نجمعه من معلومات، وكيف نستخدمها، ومع من نشاركها، وكيف يمكنك التحكم فيها.
+      </p>
+      <p>
+        باستخدامك للتطبيق، فإنك توافق على الشروط الواردة في هذه السياسة. إن كنت لا توافق على أي بند، يُرجى التوقف عن استخدام التطبيق.
+      </p>
+    </div>
+
+    <!-- 2. المعلومات التي نجمعها -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📦</div>
+        <h2>2. المعلومات التي نجمعها</h2>
+      </div>
+
+      <p><strong>أ. معلومات الحساب (عند التسجيل):</strong></p>
+      <ul class="data-list">
+        <li>الاسم الكامل</li>
+        <li>البريد الإلكتروني</li>
+        <li>رقم الهاتف</li>
+        <li>كلمة المرور (مشفرة)</li>
+        <li>الجنس</li>
+        <li>تاريخ الميلاد</li>
+        <li>المدينة</li>
+        <li>الاهتمامات</li>
+        <li>المهنة</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>ب. الصور والملفات:</strong></p>
+      <ul class="plain-list">
+        <li>صورة الملف الشخصي (الصورة الرمزية)</li>
+        <li>صور الخدمات التي يضيفها المستخدم</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>ج. بيانات الموقع الجغرافي:</strong></p>
+      <p>نجمع موقعك الجغرافي الحالي (GPS) <strong>أثناء استخدام التطبيق فقط</strong> لعرض الخدمات القريبة منك وتحديد موقع الخدمة عند إضافتها. لا نتتبع موقعك في الخلفية.</p>
+
+      <p style="margin-top:16px"><strong>د. البيانات التي تنتجها عند الاستخدام:</strong></p>
+      <ul class="plain-list">
+        <li>التقييمات والمراجعات التي تكتبها</li>
+        <li>الخدمات التي تضيفها إلى المفضلة</li>
+        <li>الخدمات التي تنشرها</li>
+        <li>البلاغات التي ترسلها</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>هـ. بيانات الجهاز والإشعارات:</strong></p>
+      <ul class="plain-list">
+        <li>رمز FCM الخاص بجهازك (لإرسال الإشعارات الفورية)</li>
+        <li>نوع نظام التشغيل (Android)</li>
+      </ul>
+    </div>
+
+    <!-- 3. كيف نستخدم المعلومات -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">⚙️</div>
+        <h2>3. كيف نستخدم معلوماتك</h2>
+      </div>
+      <ul class="plain-list">
+        <li>إنشاء حسابك وإدارته والتحقق منه</li>
+        <li>عرض الخدمات المحلية القريبة من موقعك</li>
+        <li>تمكينك من نشر وإدارة الخدمات والتقييمات</li>
+        <li>إرسال الإشعارات الفورية المتعلقة بحسابك وخدماتك</li>
+        <li>تخصيص المحتوى بناءً على اهتماماتك وموقعك</li>
+        <li>مراجعة محتوى التطبيق للتأكد من مطابقته للسياسات</li>
+        <li>تحسين أداء التطبيق وتجربة المستخدم</li>
+        <li>التواصل معك بشأن التحديثات أو التغييرات في الخدمة</li>
+      </ul>
+    </div>
+
+    <!-- 4. مشاركة المعلومات مع جهات خارجية -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🔗</div>
+        <h2>4. الخدمات الخارجية التي نستخدمها</h2>
+      </div>
+      <p>نستعين بمزودي خدمات موثوقين لتشغيل التطبيق. هؤلاء المزودون لا يملكون حق استخدام بياناتك لأغراضهم الخاصة:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>المزود</th>
+              <th>الغرض</th>
+              <th>سياسة الخصوصية</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Supabase</strong></td>
+              <td>قاعدة البيانات، المصادقة، تخزين الصور</td>
+              <td>supabase.com/privacy</td>
+            </tr>
+            <tr>
+              <td><strong>Firebase (Google)</strong></td>
+              <td>الإشعارات الفورية (FCM)</td>
+              <td>firebase.google.com/support/privacy</td>
+            </tr>
+            <tr>
+              <td><strong>OpenStreetMap</strong></td>
+              <td>خرائط تفاعلية (لا تتطلب حساباً)</td>
+              <td>wiki.osmfoundation.org/wiki/Privacy_Policy</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="highlight">
+        ⚠️ لا نبيع بياناتك الشخصية لأي طرف ثالث. لا نشارك معلوماتك مع جهات تسويقية.
+      </div>
+
+      <p>قد نكشف عن بياناتك فقط في الحالات التالية:</p>
+      <ul class="plain-list">
+        <li>بموافقتك الصريحة</li>
+        <li>إذا كان ذلك مطلوباً بموجب القانون أو أمر قضائي</li>
+        <li>لحماية حقوق المستخدمين والتطبيق من الاحتيال أو الإساءة</li>
+      </ul>
+    </div>
+
+    <!-- 5. المحتوى العام -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🌐</div>
+        <h2>5. المحتوى العام ومعلومات الخدمات</h2>
+      </div>
+      <p>
+        عندما تنشر خدمة على التطبيق، تصبح المعلومات المتعلقة بها (الاسم، الوصف، الموقع، الصور، معلومات التواصل)
+        متاحة للعموم ويمكن لجميع مستخدمي التطبيق رؤيتها. كذلك تكون التقييمات والمراجعات التي تكتبها مرئية
+        للمستخدمين الآخرين مع اسمك.
+      </p>
+      <p>يُرجى عدم نشر أي معلومات شخصية حساسة لا تريد أن يراها الآخرون ضمن الخدمات أو المراجعات.</p>
+    </div>
+
+    <!-- 6. الاحتفاظ بالبيانات -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🗓️</div>
+        <h2>6. مدة الاحتفاظ بالبيانات</h2>
+      </div>
+      <ul class="plain-list">
+        <li><strong>بيانات الحساب:</strong> تُحتفظ بها طالما حسابك نشط. عند حذف الحساب تُحذف خلال 30 يوماً.</li>
+        <li><strong>الصور المرفوعة:</strong> تُحذف عند حذف الخدمة أو الحساب.</li>
+        <li><strong>التقييمات والمراجعات:</strong> قد تبقى مجهولة الهوية بعد حذف الحساب.</li>
+        <li><strong>بيانات الإشعارات (FCM Token):</strong> تُحذف عند تسجيل الخروج أو حذف الحساب.</li>
+        <li><strong>الكاش المحلي:</strong> مخزن على جهازك ويُحذف تلقائياً عند إلغاء تثبيت التطبيق.</li>
+      </ul>
+    </div>
+
+    <!-- 7. حقوق المستخدم -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">⚖️</div>
+        <h2>7. حقوقك</h2>
+      </div>
+      <p>لديك الحق في:</p>
+      <ul class="plain-list">
+        <li><strong>الوصول:</strong> طلب نسخة من بياناتك الشخصية المحفوظة لدينا</li>
+        <li><strong>التصحيح:</strong> تعديل أي معلومات غير دقيقة من خلال الملف الشخصي في التطبيق</li>
+        <li><strong>الحذف:</strong> حذف حسابك وجميع بياناتك عبر إعدادات التطبيق أو بالتواصل معنا</li>
+        <li><strong>الاعتراض:</strong> الاعتراض على طرق معينة لمعالجة بياناتك</li>
+        <li><strong>إلغاء الاشتراك:</strong> تعطيل الإشعارات في أي وقت من إعدادات الجهاز</li>
+        <li><strong>الموقع الجغرافي:</strong> رفض إذن الموقع (مع العلم أن بعض الميزات لن تعمل)</li>
+      </ul>
+      <p style="margin-top:14px">لممارسة أي من هذه الحقوق، تواصل معنا عبر بيانات التواصل في نهاية هذه السياسة.</p>
+    </div>
+
+    <!-- 8. خصوصية الأطفال -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">👶</div>
+        <h2>8. خصوصية الأطفال</h2>
+      </div>
+      <p>
+        التطبيق مخصص للمستخدمين الذين تجاوزوا <strong>13 عاماً</strong>. لا نجمع عن قصد أي بيانات شخصية من الأطفال دون سن 13 عاماً.
+        إذا علمنا أن طفلاً دون هذا السن قد سجّل حساباً، سنحذف بياناته فوراً.
+      </p>
+    </div>
+
+    <!-- 9. الأمان -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🛡️</div>
+        <h2>9. أمان البيانات</h2>
+      </div>
+      <p>نتخذ إجراءات تقنية وتنظيمية مناسبة لحماية بياناتك، تشمل:</p>
+      <ul class="plain-list">
+        <li>تشفير الاتصالات عبر HTTPS/TLS</li>
+        <li>تشفير كلمات المرور (لا يتم تخزينها بصيغة نصية)</li>
+        <li>التحكم في الوصول إلى قاعدة البيانات عبر سياسات RLS في Supabase</li>
+        <li>التحقق من الهوية عبر JWT المشفرة</li>
+        <li>مراجعة دورية للأذونات والصلاحيات</li>
+      </ul>
+      <p style="margin-top:12px">رغم اتخاذنا هذه الإجراءات، لا يوجد نظام آمن بالكامل. نوصيك باستخدام كلمة مرور قوية وعدم مشاركتها.</p>
+    </div>
+
+    <!-- 10. تغييرات السياسة -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🔄</div>
+        <h2>10. تحديثات سياسة الخصوصية</h2>
+      </div>
+      <p>
+        قد نقوم بتحديث هذه السياسة من وقت لآخر. سنعلمك بأي تغييرات جوهرية عبر إشعار داخل التطبيق أو إشعار فوري.
+        تاريخ "آخر تحديث" في أعلى الصفحة يُشير دائماً إلى أحدث نسخة.
+        استمرارك في استخدام التطبيق بعد نشر التغييرات يُعدّ موافقة على السياسة المحدّثة.
+      </p>
+    </div>
+
+    <!-- 11. التواصل -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📬</div>
+        <h2>11. التواصل معنا</h2>
+      </div>
+      <p>إذا كانت لديك أي أسئلة أو طلبات تتعلق بخصوصيتك، تواصل معنا:</p>
+      <div class="contact-grid">
+        <div class="contact-item">
+          <strong>📱 التطبيق</strong>
+          دليل ذي قار
+        </div>
+        <div class="contact-item">
+          <strong>🏢 المطوّر</strong>
+          GiTech
+        </div>
+        <div class="contact-item">
+          <strong>📍 الموقع</strong>
+          الناصرية، ذي قار، العراق
+        </div>
+        <div class="contact-item">
+          <strong>📧 البريد الإلكتروني</strong>
+          يمكنك التواصل من خلال قسم الإعدادات داخل التطبيق
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════ ENGLISH ══════════════════ -->
+<div id="en" class="content-section" lang="en">
+  <div class="container">
+
+    <div class="meta-bar">
+      <span>📅 Effective: July 4, 2026</span>
+      <span>🔄 Last Updated: July 4, 2026</span>
+      <span>📱 App: Daleel Dhi Qar</span>
+    </div>
+
+    <!-- 1. Introduction -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📋</div>
+        <h2>1. Introduction</h2>
+      </div>
+      <p>
+        Welcome to <strong>Daleel Dhi Qar</strong>, a local service discovery platform for Dhi Qar Governorate, Iraq.
+        We are committed to protecting your privacy and personal data. This Privacy Policy explains what information we collect,
+        how we use it, with whom we share it, and how you can control it.
+      </p>
+      <p>
+        By using the app, you agree to the terms described in this policy. If you do not agree, please discontinue use of the app.
+      </p>
+    </div>
+
+    <!-- 2. Information We Collect -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📦</div>
+        <h2>2. Information We Collect</h2>
+      </div>
+
+      <p><strong>a. Account Information (upon registration):</strong></p>
+      <ul class="data-list">
+        <li>Full name</li>
+        <li>Email address</li>
+        <li>Phone number</li>
+        <li>Password (encrypted)</li>
+        <li>Gender</li>
+        <li>Date of birth</li>
+        <li>City</li>
+        <li>Interests</li>
+        <li>Occupation</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>b. Photos and Files:</strong></p>
+      <ul class="plain-list">
+        <li>Profile photo (avatar) you choose to upload</li>
+        <li>Images attached to service listings you publish</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>c. Location Data:</strong></p>
+      <p>We collect your GPS location <strong>only while you are actively using the app</strong> — to show nearby services and to place service listings on the map. We do <strong>not</strong> track your location in the background.</p>
+
+      <p style="margin-top:16px"><strong>d. User-Generated Content:</strong></p>
+      <ul class="plain-list">
+        <li>Reviews and ratings you submit</li>
+        <li>Services you add to your favorites</li>
+        <li>Service listings you publish</li>
+        <li>Reports you file against content</li>
+      </ul>
+
+      <p style="margin-top:16px"><strong>e. Device and Notification Data:</strong></p>
+      <ul class="plain-list">
+        <li>FCM token (to deliver push notifications to your device)</li>
+        <li>Operating system type (Android)</li>
+      </ul>
+    </div>
+
+    <!-- 3. How We Use Your Information -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">⚙️</div>
+        <h2>3. How We Use Your Information</h2>
+      </div>
+      <ul class="plain-list">
+        <li>Create, manage, and verify your account</li>
+        <li>Display local services near your location</li>
+        <li>Enable you to publish and manage service listings and reviews</li>
+        <li>Send push notifications about your account and services</li>
+        <li>Personalize content based on your interests and location</li>
+        <li>Moderate content to ensure compliance with our policies</li>
+        <li>Improve app performance and user experience</li>
+        <li>Communicate with you about updates or changes to the service</li>
+      </ul>
+    </div>
+
+    <!-- 4. Third-Party Services -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🔗</div>
+        <h2>4. Third-Party Services We Use</h2>
+      </div>
+      <p>We rely on trusted service providers to operate the app. These providers are not permitted to use your data for their own purposes:</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Provider</th>
+              <th>Purpose</th>
+              <th>Privacy Policy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Supabase</strong></td>
+              <td>Database, authentication, image storage</td>
+              <td>supabase.com/privacy</td>
+            </tr>
+            <tr>
+              <td><strong>Firebase (Google)</strong></td>
+              <td>Push notifications (FCM)</td>
+              <td>firebase.google.com/support/privacy</td>
+            </tr>
+            <tr>
+              <td><strong>OpenStreetMap</strong></td>
+              <td>Interactive maps (no account required)</td>
+              <td>wiki.osmfoundation.org/wiki/Privacy_Policy</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="highlight">
+        ⚠️ We do not sell your personal data to any third party. We do not share your information with advertisers or marketing firms.
+      </div>
+
+      <p>We may disclose your data only in the following circumstances:</p>
+      <ul class="plain-list">
+        <li>With your explicit consent</li>
+        <li>When required by law or court order</li>
+        <li>To protect users and the platform from fraud or abuse</li>
+      </ul>
+    </div>
+
+    <!-- 5. Public Content -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🌐</div>
+        <h2>5. Public Content and Service Listings</h2>
+      </div>
+      <p>
+        When you publish a service listing, the associated information (name, description, location, photos, contact details)
+        becomes publicly visible to all app users. Reviews and ratings you write are also visible to other users alongside your display name.
+      </p>
+      <p>Please do not include sensitive personal information you would not want others to see within service listings or reviews.</p>
+    </div>
+
+    <!-- 6. Data Retention -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🗓️</div>
+        <h2>6. Data Retention</h2>
+      </div>
+      <ul class="plain-list">
+        <li><strong>Account data:</strong> Retained while your account is active. Deleted within 30 days of account deletion.</li>
+        <li><strong>Uploaded images:</strong> Deleted when the associated service or account is removed.</li>
+        <li><strong>Reviews and ratings:</strong> May be retained in anonymized form after account deletion.</li>
+        <li><strong>FCM token:</strong> Deleted on sign-out or account deletion.</li>
+        <li><strong>Local cache:</strong> Stored on your device and automatically cleared when the app is uninstalled.</li>
+      </ul>
+    </div>
+
+    <!-- 7. Your Rights -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">⚖️</div>
+        <h2>7. Your Rights</h2>
+      </div>
+      <p>You have the right to:</p>
+      <ul class="plain-list">
+        <li><strong>Access:</strong> Request a copy of the personal data we hold about you</li>
+        <li><strong>Correction:</strong> Update inaccurate information via your profile in the app</li>
+        <li><strong>Deletion:</strong> Delete your account and all associated data via app settings or by contacting us</li>
+        <li><strong>Objection:</strong> Object to certain ways we process your data</li>
+        <li><strong>Opt-out of notifications:</strong> Disable push notifications at any time via device settings</li>
+        <li><strong>Location:</strong> Deny location permission (note: some features will not work without it)</li>
+      </ul>
+      <p style="margin-top:14px">To exercise any of these rights, contact us using the details at the end of this policy.</p>
+    </div>
+
+    <!-- 8. Children's Privacy -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">👶</div>
+        <h2>8. Children's Privacy</h2>
+      </div>
+      <p>
+        This app is intended for users aged <strong>13 and older</strong>. We do not knowingly collect personal information from children under 13.
+        If we become aware that a child under 13 has registered an account, we will delete their data immediately.
+      </p>
+    </div>
+
+    <!-- 9. Security -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🛡️</div>
+        <h2>9. Data Security</h2>
+      </div>
+      <p>We implement appropriate technical and organizational measures to protect your data, including:</p>
+      <ul class="plain-list">
+        <li>HTTPS/TLS encryption for all communications</li>
+        <li>Encrypted password storage (never stored in plain text)</li>
+        <li>Row-Level Security (RLS) policies in Supabase to control database access</li>
+        <li>Encrypted JWT tokens for authentication</li>
+        <li>Regular review of access permissions and privileges</li>
+      </ul>
+      <p style="margin-top:12px">Despite these measures, no system is completely secure. We recommend using a strong, unique password and not sharing it with anyone.</p>
+    </div>
+
+    <!-- 10. Policy Updates -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">🔄</div>
+        <h2>10. Changes to This Privacy Policy</h2>
+      </div>
+      <p>
+        We may update this policy from time to time. We will notify you of any significant changes via an in-app notice or push notification.
+        The "Last Updated" date at the top of the page always reflects the most current version.
+        Your continued use of the app after changes are posted constitutes your acceptance of the updated policy.
+      </p>
+    </div>
+
+    <!-- 11. Contact Us -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon">📬</div>
+        <h2>11. Contact Us</h2>
+      </div>
+      <p>If you have any questions or requests related to your privacy, please contact us:</p>
+      <div class="contact-grid">
+        <div class="contact-item">
+          <strong>📱 App</strong>
+          Daleel Dhi Qar
+        </div>
+        <div class="contact-item">
+          <strong>🏢 Developer</strong>
+          GiTech
+        </div>
+        <div class="contact-item">
+          <strong>📍 Location</strong>
+          Nasiriyah, Dhi Qar, Iraq
+        </div>
+        <div class="contact-item">
+          <strong>📧 Email</strong>
+          Contact us via the Settings section inside the app
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<footer>
+  <p>© 2026 دليل ذي قار · Daleel Dhi Qar · GiTech · جميع الحقوق محفوظة · All rights reserved</p>
+</footer>
+
+<script>
+  function switchLang(lang, btn) {
+    document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.lang-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById(lang).classList.add('active');
+    btn.classList.add('active');
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }
+</script>
+
+</body>
+</html>

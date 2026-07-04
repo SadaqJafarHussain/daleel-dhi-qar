@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/utils/app_icons.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/category_provider.dart';
+import '../providers/language_provider.dart';
 import '../providers/service_peovider.dart';
 import '../providers/subcategory_provider.dart';
 import '../providers/search_provider.dart';
@@ -27,6 +29,10 @@ class _SearchScreenState extends State<SearchScreen>
   late Animation<double> _filterAnimation;
 
   bool _showFilters = false;
+  bool _gridView = false;
+  // Sort options: index → provider sort key
+  static const _sortKeys = ['rating', 'newest', 'nearest'];
+  int _activeSortIndex = 0;
 
   @override
   void initState() {
@@ -44,13 +50,26 @@ class _SearchScreenState extends State<SearchScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
-      // Auto-focus after a short delay for smoother transition
+      context.read<AppConfigProvider>().addListener(_onConfigChanged);
+      // Set active sort pill to match config default
+      final cfgSort = context.read<AppConfigProvider>().searchDefaultSort;
+      final idx = _sortKeys.indexOf(cfgSort);
+      if (idx >= 0 && idx != _activeSortIndex) {
+        setState(() => _activeSortIndex = idx);
+      }
       Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          _searchFocusNode.requestFocus();
-        }
+        if (mounted) _searchFocusNode.requestFocus();
       });
     });
+  }
+
+  void _onConfigChanged() {
+    if (!mounted) return;
+    final cfg = context.read<AppConfigProvider>();
+    context.read<SearchProvider>().updateSearchConfig(
+      defaultSort:  cfg.searchDefaultSort,
+      resultsLimit: cfg.searchResultsLimit,
+    );
   }
 
   Future<void> _initializeData() async {
@@ -95,10 +114,14 @@ class _SearchScreenState extends State<SearchScreen>
         }
       }
 
-      // ✅ 4. Initialize search with all services
+      // ✅ 4. Initialize search with all services + config
+      final cfg = Provider.of<AppConfigProvider>(context, listen: false);
       searchProvider.initializeServices(
         serviceProvider.services,
         userLocation,
+        defaultSort:  cfg.searchDefaultSort,
+        initialRadius: cfg.nearbyRadiusKm,
+        resultsLimit:  cfg.searchResultsLimit,
       );
 
       searchProvider.setError(null);
@@ -117,8 +140,11 @@ class _SearchScreenState extends State<SearchScreen>
 
     _debounce = Timer(const Duration(milliseconds: 250), () {
       if (!mounted) return;
-      final searchProvider = Provider.of<SearchProvider>(context, listen: false);
-      searchProvider.updateSearchQuery(query);
+      final minLen = context.read<AppConfigProvider>().searchMinLength;
+      // Always process empty query (clears results), but require minLength for actual search
+      if (query.isEmpty || query.length >= minLen) {
+        Provider.of<SearchProvider>(context, listen: false).updateSearchQuery(query);
+      }
     });
   }
 
@@ -136,6 +162,7 @@ class _SearchScreenState extends State<SearchScreen>
 
   @override
   void dispose() {
+    context.read<AppConfigProvider>().removeListener(_onConfigChanged);
     _searchController.dispose();
     _searchFocusNode.dispose();
     _debounce?.cancel();
@@ -153,6 +180,8 @@ class _SearchScreenState extends State<SearchScreen>
     final categoryProvider = Provider.of<CategoryProvider>(context);
     final subcategoryProvider = Provider.of<SubcategoryProvider>(context);
     final loc = AppLocalizations.of(context);
+    final isAr = context.read<LanguageProvider>().isArabic;
+    final cfg = context.read<AppConfigProvider>();
 
     return SizeTransition(
       sizeFactor: _filterAnimation,
@@ -276,7 +305,7 @@ class _SearchScreenState extends State<SearchScreen>
                   ...categoryProvider.categories.map((category) {
                     return _buildModernFilterChip(
                       context: context,
-                      label: category.name,
+                      label: category.localizedName(isAr),
                       icon: Icons.folder_rounded,
                       isSelected:
                       searchProvider.selectedCategoryId == category.id,
@@ -330,7 +359,7 @@ class _SearchScreenState extends State<SearchScreen>
                         .map((subcategory) {
                       return _buildModernFilterChip(
                         context: context,
-                        label: subcategory.name,
+                        label: subcategory.localizedName(isAr),
                         icon: Icons.label_outline_rounded,
                         isSelected: searchProvider.selectedSubcategoryId ==
                             subcategory.id,
@@ -345,7 +374,8 @@ class _SearchScreenState extends State<SearchScreen>
               ),
             ],
 
-            // Distance Filter Toggle
+            // Distance Filter Toggle (hidden if admin disabled it)
+            if (cfg.searchShowDistanceFilter) ...[
             SizedBox(height: size.height * 0.025),
             Container(
               padding: EdgeInsets.all(size.width * 0.04),
@@ -524,6 +554,7 @@ class _SearchScreenState extends State<SearchScreen>
                 ),
               ),
             ],
+            ], // closes if (cfg.searchShowDistanceFilter)
           ],
         ),
       ),
@@ -601,6 +632,7 @@ class _SearchScreenState extends State<SearchScreen>
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    context.watch<AppConfigProvider>(); // rebuild when config changes (e.g. distance filter toggle)
 
     return GestureDetector(
       onTap: _dismissKeyboard,
@@ -619,6 +651,11 @@ class _SearchScreenState extends State<SearchScreen>
               SliverToBoxAdapter(
                 child: _buildFiltersSection(context, size, isDark),
               ),
+
+            // Sort + View toggle row
+            SliverToBoxAdapter(
+              child: _buildSortRow(context, size),
+            ),
 
             // Results Count
             SliverToBoxAdapter(
@@ -807,8 +844,105 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
-  // Keep the rest of your methods (_buildFiltersSection, _buildResultsHeader, _buildSearchResults, etc.)
-  // They can stay the same as they are working fine
+  Widget _buildSortRow(BuildContext context, Size size) {
+    final searchProvider = Provider.of<SearchProvider>(context);
+    final loc = AppLocalizations.of(context);
+    final primary = Theme.of(context).primaryColor;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final sortLabels = [
+      loc.t('top_rated'),
+      loc.t('newest'),
+      loc.t('nearest'),
+    ];
+    final sortIcons = [
+      Icons.star_rounded,
+      Icons.schedule_rounded,
+      Icons.location_on_rounded,
+    ];
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(size.width * 0.04, 0, size.width * 0.04, size.height * 0.012),
+      child: Row(
+        children: [
+          // Sort pills
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: List.generate(_sortKeys.length, (i) {
+                  final isSelected = _activeSortIndex == i;
+                  return Padding(
+                    padding: EdgeInsets.only(right: size.width * 0.02),
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() => _activeSortIndex = i);
+                        searchProvider.updateSearchConfig(defaultSort: _sortKeys[i]);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected ? primary : (isDark ? Colors.grey.shade800 : Colors.white),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected ? primary : Colors.grey.shade300,
+                            width: 1.5,
+                          ),
+                          boxShadow: isSelected
+                              ? [BoxShadow(color: primary.withOpacity(0.25), blurRadius: 8, offset: const Offset(0, 2))]
+                              : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(sortIcons[i],
+                                size: 14,
+                                color: isSelected ? Colors.white : Colors.grey.shade600),
+                            const SizedBox(width: 5),
+                            Text(
+                              sortLabels[i],
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                                color: isSelected ? Colors.white : Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          // Grid/List toggle
+          GestureDetector(
+            onTap: () => setState(() => _gridView = !_gridView),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: _gridView ? primary : (isDark ? Colors.grey.shade800 : Colors.white),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: _gridView ? primary : Colors.grey.shade300,
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                _gridView ? Icons.grid_view_rounded : Icons.view_list_rounded,
+                size: 18,
+                color: _gridView ? Colors.white : Colors.grey.shade600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildResultsHeader(BuildContext context, Size size) {
     final searchProvider = Provider.of<SearchProvider>(context);
@@ -1064,16 +1198,52 @@ class _SearchScreenState extends State<SearchScreen>
       );
     }
 
+    final services = searchProvider.filteredServices;
+    final hPad = size.width * 0.04;
+
+    if (_gridView) {
+      return SliverPadding(
+        padding: EdgeInsets.fromLTRB(hPad, 0, hPad, size.height * 0.02),
+        sliver: SliverGrid(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: 0.75,
+          ),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.0, end: 1.0),
+                duration: Duration(milliseconds: 250 + (index * 40)),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) => Opacity(
+                  opacity: value,
+                  child: Transform.scale(scale: 0.9 + 0.1 * value, child: child),
+                ),
+                child: ServiceCard(
+                  service: services[index],
+                  index: index,
+                  fromWhere: 'searchScreen',
+                ),
+              );
+            },
+            childCount: services.length,
+          ),
+        ),
+      );
+    }
+
     return SliverPadding(
       padding: EdgeInsets.only(
-        left: size.width * 0.04,
-        right: size.width * 0.04,
+        left: hPad,
+        right: hPad,
         bottom: size.height * 0.02,
       ),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate(
-              (context, index) {
-            final service = searchProvider.filteredServices[index];
+          (context, index) {
+            final service = services[index];
             return TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.0, end: 1.0),
               duration: Duration(milliseconds: 300 + (index * 50)),
@@ -1081,10 +1251,7 @@ class _SearchScreenState extends State<SearchScreen>
               builder: (context, value, child) {
                 return Transform.translate(
                   offset: Offset(0, 20 * (1 - value)),
-                  child: Opacity(
-                    opacity: value,
-                    child: child,
-                  ),
+                  child: Opacity(opacity: value, child: child),
                 );
               },
               child: Padding(
@@ -1100,7 +1267,7 @@ class _SearchScreenState extends State<SearchScreen>
               ),
             );
           },
-          childCount: searchProvider.filteredServices.length,
+          childCount: services.length,
         ),
       ),
     );

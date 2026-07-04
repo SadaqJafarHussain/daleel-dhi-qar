@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/screens/main_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/favorites_provider.dart';
+import '../services/supabase_auth_service.dart';
 import '../utils/app_localization.dart';
 import 'register_screen.dart';
 import 'complete_profile_screen.dart';
@@ -25,6 +28,300 @@ class _LoginScreenState extends State<LoginScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _showForgotPasswordDialog() async {
+    final locale = AppLocalizations.of(context);
+    final phoneController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    // step: 'phone' | 'loading' | 'success' | 'not_found' | 'already_pending' | 'error'
+    String step = 'phone';
+
+    await showDialog(
+      context: context,
+      barrierDismissible: step == 'loading' ? false : true,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setS) {
+          final primaryColor = Theme.of(context).primaryColor;
+
+          // ── Loading ────────────────────────────────────────────────────────
+          if (step == 'loading') {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              content: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: primaryColor),
+                    const SizedBox(height: 16),
+                    Text(
+                      locale.t('please_wait'),
+                      style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // ── Success ────────────────────────────────────────────────────────
+          if (step == 'success') {
+            final whatsapp = context.read<AppConfigProvider>().whatsapp;
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 4),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(
+                      color: Colors.green.shade50,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.check_circle_outline, color: Colors.green.shade600, size: 40),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    locale.t('reset_request_success_title'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    locale.t('reset_request_success_desc'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.55),
+                  ),
+                  if (whatsapp.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Divider(color: Colors.grey.shade200),
+                    const SizedBox(height: 10),
+                    Text(
+                      locale.t('reset_request_contact'),
+                      style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.chat_bubble_outline, size: 16, color: Color(0xFF25D366)),
+                        label: Text(
+                          locale.t('reset_request_whatsapp'),
+                          style: const TextStyle(color: Color(0xFF25D366), fontWeight: FontWeight.w600),
+                        ),
+                        onPressed: () {
+                          final cleaned = whatsapp.replaceAll(RegExp(r'[\s+\-()]'), '');
+                          launchUrl(
+                            Uri.parse('https://wa.me/$cleaned'),
+                            mode: LaunchMode.externalApplication,
+                          );
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0xFF25D366)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              actions: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(locale.t('confirm'), style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          // ── Non-success result views (not_found / already_pending / error) ─
+          if (step != 'phone') {
+            final isAlreadyPending = step == 'already_pending';
+            final isNotFound = step == 'not_found';
+
+            final Color iconBgColor = isAlreadyPending
+                ? Colors.blue.shade50
+                : isNotFound
+                    ? Colors.orange.shade50
+                    : Colors.red.shade50;
+            final Color iconColor = isAlreadyPending
+                ? Colors.blue.shade600
+                : isNotFound
+                    ? Colors.orange.shade600
+                    : Colors.red.shade600;
+            final IconData icon = isAlreadyPending
+                ? Icons.hourglass_top_rounded
+                : isNotFound
+                    ? Icons.phone_disabled_outlined
+                    : Icons.error_outline;
+            final String message = isAlreadyPending
+                ? locale.t('reset_request_already_pending')
+                : isNotFound
+                    ? locale.t('reset_request_phone_not_found')
+                    : locale.t('reset_request_failed');
+
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: const EdgeInsets.fromLTRB(24, 28, 24, 4),
+              actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72, height: 72,
+                    decoration: BoxDecoration(color: iconBgColor, shape: BoxShape.circle),
+                    child: Icon(icon, color: iconColor, size: 36),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700, height: 1.55),
+                  ),
+                ],
+              ),
+              actions: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: Text(locale.t('cancel')),
+                      ),
+                    ),
+                    if (!isAlreadyPending) ...[
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => setS(() => step = 'phone'),
+                          style: ElevatedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          child: Text(locale.t('try_again')),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            );
+          }
+
+          // ── Phone input (default) ──────────────────────────────────────────
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+            actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            title: Row(
+              children: [
+                Container(
+                  width: 38, height: 38,
+                  decoration: BoxDecoration(
+                    color: primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.lock_reset, color: primaryColor, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    locale.t('forgot_password'),
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+            content: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    locale.t('reset_request_desc'),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600, height: 1.5),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: phoneController,
+                    keyboardType: TextInputType.phone,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: '07XX XXX XXXX',
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    ),
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return locale.t('required_field');
+                      final cleaned = v.replaceAll(RegExp(r'[\s-]'), '');
+                      if (!RegExp(r'^07[3-9]\d{8}$').hasMatch(cleaned)) {
+                        return locale.t('invalid_phone_number');
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: Text(locale.t('cancel')),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      icon: const Icon(Icons.send_rounded, size: 16),
+                      label: Text(locale.t('reset_request_submit')),
+                      onPressed: () async {
+                        if (!formKey.currentState!.validate()) return;
+                        setS(() => step = 'loading');
+                        final result = await SupabaseAuthService()
+                            .submitPasswordResetRequest(phoneController.text.trim());
+                        if (!ctx.mounted) return;
+                        setS(() {
+                          switch (result) {
+                            case ResetRequestResult.success:
+                              step = 'success';
+                            case ResetRequestResult.phoneNotFound:
+                              step = 'not_found';
+                            case ResetRequestResult.alreadyPending:
+                              step = 'already_pending';
+                            default:
+                              step = 'error';
+                          }
+                        });
+                      },
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    phoneController.dispose();
   }
 
   Future<void> _handleLogin() async {
@@ -61,7 +358,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.errorMessage ?? locale.t('logout_confirm')),
+          content: Text(authProvider.errorMessage ?? locale.t('login_failed')),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -204,12 +501,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           GestureDetector(
-                            onTap: () {},
+                            onTap: _showForgotPasswordDialog,
                             child: Text(
                               locale.t('forgot_password'),
                               style: TextStyle(
                                 fontSize: w * 0.035,
-                                color: const Color(0xFFB91C4C),
+                                color: Theme.of(context).primaryColor,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -314,7 +611,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: ElevatedButton(
                           onPressed: auth.isLoading ? null : _handleLogin,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A2C),
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

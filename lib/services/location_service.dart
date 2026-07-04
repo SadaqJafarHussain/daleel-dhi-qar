@@ -44,8 +44,12 @@ class LocationService {
 
       // Handle denied permissions
       if (permission == LocationPermission.denied) {
-        // Request permission
-        permission = await Geolocator.requestPermission();
+        // Request permission with a timeout so it doesn't hang indefinitely
+        permission = await Geolocator.requestPermission()
+            .timeout(
+              const Duration(seconds: 15),
+              onTimeout: () => LocationPermission.denied,
+            );
         _lastPermissionStatus = permission;
 
         if (permission == LocationPermission.denied) {

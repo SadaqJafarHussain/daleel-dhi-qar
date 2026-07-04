@@ -3,15 +3,19 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:tour_guid/providers/subcategory_provider.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:io';
 import '../../providers/service_peovider.dart';
 import '../../utils/app_localization.dart';
+import '../../providers/app_config_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/category_provider.dart';
+import '../../providers/language_provider.dart';
 import '../../models/service_model.dart';
 import '../../models/subcategory_model.dart';
 import '../../utils/safe_state.dart';
 import '../../utils/debouncer.dart';
+import '../location_picker_screen.dart';
 
 /// Open sheet for adding a new service
 Future<Map<String, dynamic>?> openAddServiceSheet(BuildContext context) async {
@@ -25,13 +29,14 @@ Future<Map<String, dynamic>?> openAddServiceSheet(BuildContext context) async {
     backgroundColor: Colors.transparent,
     isDismissible: false,
     enableDrag: false,
-    builder: (context) => WillPopScope(
-      onWillPop: () async {
+    builder: (context) => PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         final provider = Provider.of<ServiceProvider>(context, listen: false);
-        if (provider.isSaving) {
-          return false;
+        if (!provider.isSaving) {
+          Navigator.pop(context);
         }
-        return true;
       },
       child: AddEditServiceBottomSheet(w: w, h: h),
     ),
@@ -72,13 +77,14 @@ Future<Map<String, dynamic>?> openEditServiceSheet(BuildContext context, Service
     backgroundColor: Colors.transparent,
     isDismissible: false,
     enableDrag: false,
-    builder: (context) => WillPopScope(
-      onWillPop: () async {
+    builder: (context) => PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
         final provider = Provider.of<ServiceProvider>(context, listen: false);
-        if (provider.isSaving) {
-          return false;
+        if (!provider.isSaving) {
+          Navigator.pop(context);
         }
-        return true;
       },
       child: AddEditServiceBottomSheet(w: w, h: h, editService: service),
     ),
@@ -151,6 +157,7 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
 
   double? _selectedLat;
   double? _selectedLng;
+  String? _selectedAddress;
 
   // Validation errors
   String? _categoryError;
@@ -415,7 +422,12 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
           ),
           SizedBox(height: widget.h * 0.02),
 
-          // Address
+          // Location Picker (above address — fills address automatically)
+          if (context.read<AppConfigProvider>().featureMapPicker)
+            _buildLocationPicker(loc),
+          SizedBox(height: widget.h * 0.02),
+
+          // Address (auto-filled from map, still editable)
           _buildTextField(
             label: loc.t('address'),
             hint: loc.t('address_hint'),
@@ -438,9 +450,6 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
           SizedBox(height: widget.h * 0.025),
           // ✅ Working Hours Section
           _buildWorkingHoursSection(loc),
-          SizedBox(height: widget.h * 0.025),
-          // Location Picker
-          _buildLocationPicker(loc),
           SizedBox(height: widget.h * 0.02),
         ],
       ),
@@ -828,70 +837,6 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
           SizedBox(height: widget.h * 0.015),
         ],
 
-        // Manual Override Toggle
-        Container(
-          padding: EdgeInsets.symmetric(
-            horizontal: widget.w * 0.04,
-            vertical: widget.h * 0.012,
-          ),
-          decoration: BoxDecoration(
-            color: isDarkMode ? const Color(0xFF1E293B) : const Color(0xFFF8FAFC),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: _isManualOverride
-                  ? const Color(0xFFF59E0B)
-                  : Theme.of(context).dividerColor,
-              width: _isManualOverride ? 2 : 1,
-            ),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF59E0B).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.toggle_on_outlined,
-                  size: 20,
-                  color: const Color(0xFFF59E0B),
-                ),
-              ),
-              SizedBox(width: widget.w * 0.03),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      loc.t('manual_override'),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: widget.w * 0.036,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      loc.t('manual_override_desc'),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: widget.w * 0.028,
-                        color: Theme.of(context).textTheme.bodySmall?.color?.withOpacity(0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Switch(
-                value: _isManualOverride,
-                onChanged: (value) {
-                  setState(() {
-                    _isManualOverride = value;
-                  });
-                },
-                activeColor: const Color(0xFFF59E0B),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -1171,42 +1116,52 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
 
   Widget _buildLocationPicker(AppLocalizations loc) {
     final hasError = _locationError != null;
+    final hasLocation = _selectedLat != null && _selectedLng != null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
           onTap: _pickLocation,
+          borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: EdgeInsets.all(widget.w * 0.04),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.05),
+              color: hasError
+                  ? const Color(0xFFEF4444).withOpacity(0.04)
+                  : hasLocation
+                      ? Theme.of(context).primaryColor.withOpacity(0.05)
+                      : Theme.of(context).primaryColor.withOpacity(0.03),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: hasError
                     ? const Color(0xFFEF4444)
-                    : _selectedLat != null && _selectedLng != null
-                    ? Theme.of(context).primaryColor
-                    : Theme.of(context).primaryColor.withOpacity(0.2),
-                width: hasError || (_selectedLat != null && _selectedLng != null) ? 2 : 1,
+                    : hasLocation
+                        ? Theme.of(context).primaryColor
+                        : Theme.of(context).primaryColor.withOpacity(0.2),
+                width: hasError || hasLocation ? 1.5 : 1,
               ),
             ),
             child: Row(
               children: [
+                // Icon badge
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
                     color: hasError
                         ? const Color(0xFFEF4444).withOpacity(0.1)
-                        : Theme.of(context).primaryColor.withOpacity(0.1),
+                        : hasLocation
+                            ? Theme.of(context).primaryColor.withOpacity(0.12)
+                            : Theme.of(context).primaryColor.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
-                    Icons.location_on_outlined,
+                    hasLocation ? Icons.location_on : Icons.add_location_alt_outlined,
                     color: hasError
                         ? const Color(0xFFEF4444)
                         : Theme.of(context).primaryColor,
-                    size: widget.w * 0.06,
+                    size: widget.w * 0.055,
                   ),
                 ),
                 SizedBox(width: widget.w * 0.03),
@@ -1222,29 +1177,59 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
                           color: hasError ? const Color(0xFFEF4444) : null,
                         ),
                       ),
-                      SizedBox(height: widget.h * 0.005),
-                      Text(
-                        _selectedLat != null && _selectedLng != null
-                            ? '${_selectedLat!.toStringAsFixed(4)}, ${_selectedLng!.toStringAsFixed(4)}'
-                            : loc.t('tap_to_select'),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontSize: widget.w * 0.032,
-                          color: hasError
-                              ? const Color(0xFFEF4444)
-                              : _selectedLat != null && _selectedLng != null
-                              ? Theme.of(context).primaryColor
-                              : null,
+                      SizedBox(height: widget.h * 0.004),
+                      if (hasLocation && _selectedAddress != null) ...[
+                        Text(
+                          _selectedAddress!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: widget.w * 0.032,
+                            color: Theme.of(context).primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
+                      ] else if (hasLocation) ...[
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.check_circle,
+                              size: 13,
+                              color: Theme.of(context).primaryColor,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              loc.t('location_selected'),
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontSize: widget.w * 0.032,
+                                color: Theme.of(context).primaryColor,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ] else ...[
+                        Text(
+                          loc.t('tap_to_select'),
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: widget.w * 0.032,
+                            color: hasError
+                                ? const Color(0xFFEF4444)
+                                : Theme.of(context).textTheme.bodySmall?.color,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
                 Icon(
-                  Icons.arrow_forward_ios,
-                  size: widget.w * 0.04,
+                  hasLocation ? Icons.edit_location_alt_outlined : Icons.chevron_right,
+                  size: widget.w * 0.05,
                   color: hasError
                       ? const Color(0xFFEF4444)
-                      : Theme.of(context).iconTheme.color,
+                      : hasLocation
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).iconTheme.color,
                 ),
               ],
             ),
@@ -1837,15 +1822,16 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
                 itemCount: _availableSubcategories.length,
                 itemBuilder: (context, index) {
                   final subcategory = _availableSubcategories[index];
+                  final isAr = context.read<LanguageProvider>().isArabic;
                   return ListTile(
-                    title: Text(subcategory.name),
+                    title: Text(subcategory.localizedName(isAr)),
                     trailing: _selectedSubcategoryId == subcategory.id
                         ? Icon(Icons.check, color: Theme.of(context).primaryColor)
                         : null,
                     onTap: () {
                       setState(() {
                         _selectedSubcategoryId = subcategory.id;
-                        _selectedSubcategoryName = subcategory.name;
+                        _selectedSubcategoryName = subcategory.localizedName(isAr);
                         _subcategoryError = null; // Clear error
                       });
                       Navigator.pop(context);
@@ -1863,38 +1849,29 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
   Future<void> _pickLocation() async {
     final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
     final currentLocation = serviceProvider.userLocation;
-    final loc = AppLocalizations.of(context);
 
-    if (currentLocation != null) {
-      setState(() {
-        _selectedLat = currentLocation.latitude;
-        _selectedLng = currentLocation.longitude;
-        _locationError = null; // Clear error
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.t('location_selected')),
-          backgroundColor: const Color(0xFF22C55E),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LocationPickerScreen(
+          initialLat: _selectedLat ?? currentLocation?.latitude,
+          initialLng: _selectedLng ?? currentLocation?.longitude,
         ),
-      );
-    } else {
-      setState(() {
-        _selectedLat = _selectedLat ?? 33.315241;
-        _selectedLng = _selectedLng ?? 44.366085;
-        _locationError = null; // Clear error
-      });
+        fullscreenDialog: true,
+      ),
+    );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(loc.t('using_default_location')),
-          backgroundColor: Theme.of(context).primaryColor,
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (result != null && mounted) {
+      final address = result['address'] as String?;
+      setState(() {
+        _selectedLat = result['lat'] as double;
+        _selectedLng = result['lng'] as double;
+        _selectedAddress = address;
+        _locationError = null;
+      });
+      if (address != null && address.isNotEmpty) {
+        _addressController.text = address;
+      }
     }
   }
 
@@ -2148,6 +2125,10 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
     // Prepare work days string
     final workDaysString = _selectedWorkDays.join(',');
 
+    // Determine if approval is required (only for new services, not edits)
+    final requiresApproval = !widget.isEditMode &&
+        context.read<AppConfigProvider>().featureServiceApproval;
+
     // Call appropriate API method
     final result = widget.isEditMode
         ? await serviceProvider.updateService(
@@ -2186,12 +2167,12 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
       whatsapp: _whatsappController.text.trim().isEmpty ? null : _whatsappController.text.trim(),
       telegram: _telegramController.text.trim().isEmpty ? null : _telegramController.text.trim(),
       attachmentPaths: _newAttachmentPaths.isNotEmpty ? _newAttachmentPaths : null,
-      // Working hours fields
       openTime: _isOpen24Hours ? null : _openTime,
       closeTime: _isOpen24Hours ? null : _closeTime,
       workDays: _isOpen24Hours ? null : workDaysString,
       isOpen24Hours: _isOpen24Hours,
       isManualOverride: _isManualOverride,
+      requiresApproval: requiresApproval,
     );
 
     if (!mounted) return;
@@ -2208,12 +2189,19 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
                   ? loc.t('service_updated_successfully')
                   : loc.t('failed_to_update_service'))
               : (result['success'] == true
-                  ? loc.t('service_added_successfully')
+                  ? (result['isPending'] == true
+                      ? loc.t('service_submitted_for_review')
+                      : loc.t('service_added_successfully'))
                   : loc.t('failed_to_add_service')),
         ),
-        backgroundColor:
-        result['success'] == true ? const Color(0xFF22C55E) : const Color(0xFFEF4444),
-        duration: const Duration(seconds: 3),
+        backgroundColor: result['success'] == true
+            ? (result['isPending'] == true
+                ? const Color(0xFFF59E0B)
+                : const Color(0xFF22C55E))
+            : const Color(0xFFEF4444),
+        duration: result['isPending'] == true
+            ? const Duration(seconds: 5)
+            : const Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         action: result['success'] != true
             ? SnackBarAction(
@@ -2241,6 +2229,7 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
     final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
     final subCat = Provider.of<SubcategoryProvider>(context, listen: false);
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final isAr = Provider.of<LanguageProvider>(context, listen: false).isArabic;
 
     if (_selectedCategoryId == null) return;
 
@@ -2248,7 +2237,7 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
       final category = categoryProvider.categories.firstWhere(
             (cat) => cat.id == _selectedCategoryId,
       );
-      _selectedCategoryName = category.name;
+      _selectedCategoryName = category.localizedName(isAr);
 
       if (authProvider.token != null) {
         subCat.fetchSubcategories(authProvider.token!).then((_) {
@@ -2263,7 +2252,7 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
                 final subcategory = _availableSubcategories.firstWhere(
                       (subcat) => subcat.id == _selectedSubcategoryId,
                 );
-                _selectedSubcategoryName = subcategory.name;
+                _selectedSubcategoryName = subcategory.localizedName(isAr);
               } catch (e) {
                 if (kDebugMode) {
                   print('Subcategory not found: $e');
@@ -2313,15 +2302,16 @@ class _AddEditServiceBottomSheetState extends State<AddEditServiceBottomSheet> w
                 itemCount: categoryProvider.categories.length,
                 itemBuilder: (context, index) {
                   final category = categoryProvider.categories[index];
+                  final isAr = context.read<LanguageProvider>().isArabic;
                   return ListTile(
-                    title: Text(category.name),
+                    title: Text(category.localizedName(isAr)),
                     trailing: _selectedCategoryId == category.id
                         ? Icon(Icons.check, color: Theme.of(context).primaryColor)
                         : null,
                     onTap: () async {
                       setState(() {
                         _selectedCategoryId = category.id;
-                        _selectedCategoryName = category.name;
+                        _selectedCategoryName = category.localizedName(isAr);
                         _selectedSubcategoryId = null;
                         _selectedSubcategoryName = null;
                         _availableSubcategories = [];

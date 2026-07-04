@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
+import 'package:tour_guid/providers/app_config_provider.dart';
 import 'package:tour_guid/screens/profile_screen/profile_screen.dart';
 import 'package:tour_guid/screens/settings_screen.dart';
 import 'package:tour_guid/utils/app_localization.dart';
@@ -35,6 +36,7 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
+    final cfg = Provider.of<AppConfigProvider>(context);
     final w = MediaQuery.of(context).size.width;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final screens = _buildScreens(authProvider.isAuthenticated);
@@ -50,21 +52,21 @@ class _MainScreenState extends State<MainScreen> {
           index: _currentIndex,
           children: screens,
         ),
-        bottomNavigationBar: _buildBottomNavBar(w, isDarkMode),
-        floatingActionButton: FloatingActionButton(
-          onPressed: () async {
-            // Check if user is authenticated
-            if (authProvider.user == null) {
-              showLoginPromptDialog(context, feature: 'add_service');
-              return;
-            }
-            await openAddServiceSheet(context);
-            // UI will automatically update because provider calls notifyListeners()
-          },
-          backgroundColor: Theme.of(context).primaryColor,
-          elevation: 6,
-          child: Icon(Icons.add, color: Colors.white, size: w * 0.07),
-        ),
+        bottomNavigationBar: _buildBottomNavBar(w, isDarkMode, cfg),
+        floatingActionButton: cfg.featureAddService
+            ? FloatingActionButton(
+                onPressed: () async {
+                  if (authProvider.user == null) {
+                    showLoginPromptDialog(context, feature: 'add_service');
+                    return;
+                  }
+                  await openAddServiceSheet(context);
+                },
+                backgroundColor: Theme.of(context).primaryColor,
+                elevation: 6,
+                child: Icon(Icons.add, color: Colors.white, size: w * 0.07),
+              )
+            : null,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       ),
     );
@@ -155,7 +157,7 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
-  Widget _buildBottomNavBar(double w, bool isDarkMode) {
+  Widget _buildBottomNavBar(double w, bool isDarkMode, AppConfigProvider cfg) {
     return Container(
       decoration: BoxDecoration(
         color: Theme.of(context).bottomNavigationBarTheme.backgroundColor,
@@ -196,17 +198,18 @@ class _MainScreenState extends State<MainScreen> {
             ),
             label: AppLocalizations.of(context).t("nav_profile"),
           ),
-          BottomNavigationBarItem(
-            icon: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Icon(Icons.favorite_outline, size: w * 0.065),
+          if (cfg.featureFavorites)
+            BottomNavigationBarItem(
+              icon: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Icon(Icons.favorite_outline, size: w * 0.065),
+              ),
+              activeIcon: Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Icon(Icons.favorite, size: w * 0.065),
+              ),
+              label: AppLocalizations.of(context).t("nav_favorites"),
             ),
-            activeIcon: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Icon(Icons.favorite, size: w * 0.065),
-            ),
-            label: AppLocalizations.of(context).t("nav_favorites"),
-          ),
           BottomNavigationBarItem(
             icon: Padding(
               padding: const EdgeInsets.only(bottom: 4),

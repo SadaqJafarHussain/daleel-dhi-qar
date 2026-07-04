@@ -17,6 +17,7 @@ enum FeaturedSectionType {
   recentlyAdded,
   openNow,
   verified,
+  featured,
 }
 
 /// Configuration for featured section appearance
@@ -75,6 +76,15 @@ class FeaturedSectionConfig {
           emptyTitleKey: 'no_verified_services',
           emptySubtitleKey: 'no_verified_services_subtitle',
         );
+      case FeaturedSectionType.featured:
+        return const FeaturedSectionConfig(
+          icon: Icons.workspace_premium_rounded,
+          gradientColors: [Color(0xFF7C3AED), Color(0xFF5B21B6)],
+          titleKey: 'featured_services',
+          subtitleKey: 'featured_services_subtitle',
+          emptyTitleKey: 'no_featured_services',
+          emptySubtitleKey: 'no_featured_services_subtitle',
+        );
     }
   }
 }
@@ -85,6 +95,7 @@ class FeaturedServicesSection extends StatelessWidget {
   final double height;
   final FeaturedSectionType type;
   final int maxItems;
+  final String? customTitle; // overrides the default localized title when set
 
   const FeaturedServicesSection({
     Key? key,
@@ -92,6 +103,7 @@ class FeaturedServicesSection extends StatelessWidget {
     required this.height,
     required this.type,
     this.maxItems = 10,
+    this.customTitle,
   }) : super(key: key);
 
   @override
@@ -122,6 +134,7 @@ class FeaturedServicesSection extends StatelessWidget {
           loc,
           config,
           services.take(maxItems).toList(),
+          customTitle: customTitle,
         );
       },
     );
@@ -137,6 +150,8 @@ class FeaturedServicesSection extends StatelessWidget {
         return provider.openNowServices;
       case FeaturedSectionType.verified:
         return provider.verifiedServices;
+      case FeaturedSectionType.featured:
+        return provider.featuredServices;
     }
   }
 
@@ -173,8 +188,9 @@ class FeaturedServicesSection extends StatelessWidget {
     bool isDark,
     AppLocalizations loc,
     FeaturedSectionConfig config,
-    List<Service> services,
-  ) {
+    List<Service> services, {
+    String? customTitle,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -185,7 +201,8 @@ class FeaturedServicesSection extends StatelessWidget {
             loc,
             config,
             services.length,
-            () => _navigateToAllServices(context, services, loc, config),
+            () => _navigateToAllServices(context, services, loc, config, customTitle: customTitle),
+            customTitle: customTitle,
           ),
         ),
 
@@ -193,7 +210,11 @@ class FeaturedServicesSection extends StatelessWidget {
 
         // Services horizontal list
         SizedBox(
-          height: type == FeaturedSectionType.verified ? 280 : 230,
+          height: type == FeaturedSectionType.verified
+              ? 280
+              : type == FeaturedSectionType.topRated
+                  ? 250
+                  : 230,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
@@ -214,7 +235,7 @@ class FeaturedServicesSection extends StatelessWidget {
                         service: services[index],
                         index: index,
                         fromWhere: type.name,
-                        height: 220,
+                        height: type == FeaturedSectionType.topRated ? 240 : 220,
                         cardStyle: _getCardStyleForType(type),
                       ),
               );
@@ -230,37 +251,27 @@ class FeaturedServicesSection extends StatelessWidget {
     AppLocalizations loc,
     FeaturedSectionConfig config,
     int? itemCount,
-    VoidCallback? onViewAll,
-  ) {
+    VoidCallback? onViewAll, {
+    String? customTitle,
+  }) {
+    final title = customTitle ?? loc.t(config.titleKey);
+    final subtitle = loc.t(config.subtitleKey);
     switch (type) {
       case FeaturedSectionType.topRated:
         return SectionHeader.topRated(
-          title: loc.t(config.titleKey),
-          subtitle: loc.t(config.subtitleKey),
-          itemCount: itemCount,
-          onViewAll: onViewAll,
-        );
+          title: title, subtitle: subtitle, itemCount: itemCount, onViewAll: onViewAll);
       case FeaturedSectionType.recentlyAdded:
         return SectionHeader.recentlyAdded(
-          title: loc.t(config.titleKey),
-          subtitle: loc.t(config.subtitleKey),
-          itemCount: itemCount,
-          onViewAll: onViewAll,
-        );
+          title: title, subtitle: subtitle, itemCount: itemCount, onViewAll: onViewAll);
       case FeaturedSectionType.openNow:
         return SectionHeader.openNow(
-          title: loc.t(config.titleKey),
-          subtitle: loc.t(config.subtitleKey),
-          itemCount: itemCount,
-          onViewAll: onViewAll,
-        );
+          title: title, subtitle: subtitle, itemCount: itemCount, onViewAll: onViewAll);
       case FeaturedSectionType.verified:
         return SectionHeader.verified(
-          title: loc.t(config.titleKey),
-          subtitle: loc.t(config.subtitleKey),
-          itemCount: itemCount,
-          onViewAll: onViewAll,
-        );
+          title: title, subtitle: subtitle, itemCount: itemCount, onViewAll: onViewAll);
+      case FeaturedSectionType.featured:
+        return SectionHeader.topRated(
+          title: title, subtitle: subtitle, itemCount: itemCount, onViewAll: onViewAll);
     }
   }
 
@@ -268,14 +279,15 @@ class FeaturedServicesSection extends StatelessWidget {
     BuildContext context,
     List<Service> services,
     AppLocalizations loc,
-    FeaturedSectionConfig config,
-  ) {
+    FeaturedSectionConfig config, {
+    String? customTitle,
+  }) {
     Navigator.push(
       context,
       PageTransitions.slideRight(
         page: ServicesScreen.fromFeaturedServices(
           services: services,
-          title: loc.t(config.titleKey),
+          title: customTitle ?? loc.t(config.titleKey),
         ),
       ),
     );
@@ -291,7 +303,9 @@ class FeaturedServicesSection extends StatelessWidget {
       case FeaturedSectionType.openNow:
         return ServiceCardStyle.openNow;
       case FeaturedSectionType.verified:
-        return ServiceCardStyle.standard; // Verified uses VerifiedServiceCard
+        return ServiceCardStyle.standard;
+      case FeaturedSectionType.featured:
+        return ServiceCardStyle.topRated;
     }
   }
 }

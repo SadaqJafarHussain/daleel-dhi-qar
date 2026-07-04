@@ -13,11 +13,13 @@ import '../services/realtime_service.dart';
 
 class ServiceProvider with ChangeNotifier {
   // State
-  List<Service> _allServices = [];  // Master list - never filtered
-  List<Service> _services = [];     // Current view (filtered or all)
+  List<Service> _allServices = [];  // Master list - approved only, never filtered
+  List<Service> _services = [];     // Current view (filtered or all, approved only)
   List<Service> _nearbyServices = [];
+  List<Service> _myServices = [];   // Current user's services (all statuses)
   bool _isLoading = false;
   bool _isLoadingNearby = false;
+  bool _isLoadingMyServices = false;
   bool _isAdding = false;
   bool _isUpdating = false;
   bool _isUploadingFiles = false;
@@ -46,6 +48,8 @@ class ServiceProvider with ChangeNotifier {
   List<Service> get services => _services;
   List<Service> get allServices => _allServices;
   List<Service> get nearbyServices => _nearbyServices;
+  List<Service> get myServices => _myServices;
+  bool get isLoadingMyServices => _isLoadingMyServices;
 
   /// Get top rated services (4.0+ stars, sorted by rating) - from ALL services
   List<Service> get topRatedServices {
@@ -86,6 +90,11 @@ class ServiceProvider with ChangeNotifier {
   /// Get verified owner services - from ALL services
   List<Service> get verifiedServices {
     return _allServices.where((s) => s.isOwnerVerified).toList();
+  }
+
+  /// Get admin-featured services - from ALL services
+  List<Service> get featuredServices {
+    return _allServices.where((s) => s.isFeatured).toList();
   }
   bool get isLoading => _isLoading;
   bool get isLoadingNearby => _isLoadingNearby;
@@ -132,6 +141,7 @@ class ServiceProvider with ChangeNotifier {
     String? workDays,
     bool? isOpen24Hours,
     bool? isManualOverride,
+    bool requiresApproval = false,
   }) async {
     _isAdding = true;
     notifyListeners();
@@ -140,7 +150,7 @@ class ServiceProvider with ChangeNotifier {
       if (kDebugMode) {
         print('ServiceProvider: 📤 Adding new service via Supabase...');
         print('ServiceProvider: Category: $catId, Subcategory: $subcatId');
-        print('ServiceProvider: Name: $name');
+        print('ServiceProvider: Name: $name, requiresApproval: $requiresApproval');
       }
 
       // Get current user ID
@@ -177,6 +187,7 @@ class ServiceProvider with ChangeNotifier {
         'is_open_24_hours': isOpen24Hours ?? false,
         'is_manual_override': isManualOverride ?? false,
         'active': true,
+        'status': requiresApproval ? 'pending' : 'approved',
       };
 
       final response = await _supabase.client
@@ -242,40 +253,49 @@ class ServiceProvider with ChangeNotifier {
 
       final completeService = Service.fromJson(completeServiceResponse);
 
-      // Add to master list (_allServices)
-      final allExistingIndex = _allServices.indexWhere((s) => s.id == completeService.id);
-      if (allExistingIndex >= 0) {
-        _allServices[allExistingIndex] = completeService;
+      // Always add to _myServices (all statuses visible to owner)
+      final myIdx = _myServices.indexWhere((s) => s.id == completeService.id);
+      if (myIdx >= 0) {
+        _myServices[myIdx] = completeService;
       } else {
-        _allServices.insert(0, completeService);
+        _myServices.insert(0, completeService);
       }
 
-      // Add to current view list (_services)
-      final existingIndex = _services.indexWhere((s) => s.id == completeService.id);
-      if (existingIndex >= 0) {
-        _services[existingIndex] = completeService;
-      } else {
-        _services.insert(0, completeService);
-      }
+      // Only add to public lists if approved
+      if (completeService.status == 'approved') {
+        final allExistingIndex = _allServices.indexWhere((s) => s.id == completeService.id);
+        if (allExistingIndex >= 0) {
+          _allServices[allExistingIndex] = completeService;
+        } else {
+          _allServices.insert(0, completeService);
+        }
 
-      // Add to nearby services if within range
-      if (_userLocation != null && completeService.lat != 0 && completeService.lng != 0) {
-        final distance = _calculateDistance(
-          _userLocation!.latitude,
-          _userLocation!.longitude,
-          completeService.lat,
-          completeService.lng,
-        );
+        final existingIndex = _services.indexWhere((s) => s.id == completeService.id);
+        if (existingIndex >= 0) {
+          _services[existingIndex] = completeService;
+        } else {
+          _services.insert(0, completeService);
+        }
 
-        if (distance <= 10.0) {
-          completeService.distance = distance;
-          final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == completeService.id);
-          if (nearbyIndex >= 0) {
-            _nearbyServices[nearbyIndex] = completeService;
-          } else {
-            _nearbyServices.insert(0, completeService);
+        // Add to nearby services if within range
+        if (_userLocation != null && completeService.lat != 0 && completeService.lng != 0) {
+          final distance = _calculateDistance(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            completeService.lat,
+            completeService.lng,
+          );
+
+          if (distance <= 10.0) {
+            completeService.distance = distance;
+            final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == completeService.id);
+            if (nearbyIndex >= 0) {
+              _nearbyServices[nearbyIndex] = completeService;
+            } else {
+              _nearbyServices.insert(0, completeService);
+            }
+            _nearbyServices.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
           }
-          _nearbyServices.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
         }
       }
 
@@ -292,8 +312,11 @@ class ServiceProvider with ChangeNotifier {
 
       return {
         'success': true,
-        'message': 'Service added successfully',
+        'message': completeService.status == 'pending'
+            ? 'Service submitted for review'
+            : 'Service added successfully',
         'service': completeService,
+        'isPending': completeService.status == 'pending',
       };
     } catch (e) {
       if (kDebugMode) {
@@ -496,6 +519,7 @@ class ServiceProvider with ChangeNotifier {
       _allServices.removeWhere((s) => s.id == serviceId);
       _services.removeWhere((s) => s.id == serviceId);
       _nearbyServices.removeWhere((s) => s.id == serviceId);
+      _myServices.removeWhere((s) => s.id == serviceId);
       _categoryCache.forEach((key, list) => list.removeWhere((s) => s.id == serviceId));
       _subcategoryCache.forEach((key, list) => list.removeWhere((s) => s.id == serviceId));
 
@@ -719,7 +743,11 @@ class ServiceProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final locationResult = await _locationService.getCurrentLocation();
+      final locationResult = await _locationService.getCurrentLocation()
+          .timeout(
+            const Duration(seconds: 20),
+            onTimeout: () => LocationResult.error('location_timeout'),
+          );
       _lastLocationResult = locationResult;
 
       Position? position;
@@ -840,7 +868,7 @@ class ServiceProvider with ChangeNotifier {
         cacheKey: 'all_services',
         cacheBox: 'services',
         cacheDuration: AppConfig.serviceCacheDuration,
-        eq: {'active': true},
+        eq: {'active': true, 'status': 'approved'},
         orderBy: 'created_at',
         ascending: false,
         select: '*, service_files(*), profiles!fk_services_user(name, is_verified)',
@@ -971,7 +999,7 @@ class ServiceProvider with ChangeNotifier {
         cacheKey: cacheKey,
         cacheBox: 'services',
         cacheDuration: AppConfig.serviceCacheDuration,
-        eq: {'active': true, 'cat_id': categoryId},
+        eq: {'active': true, 'status': 'approved', 'cat_id': categoryId},
         orderBy: 'created_at',
         ascending: false,
         select: '*, service_files(*), profiles!fk_services_user(name, is_verified)',
@@ -1019,7 +1047,7 @@ class ServiceProvider with ChangeNotifier {
         cacheKey: cacheKey,
         cacheBox: 'services',
         cacheDuration: AppConfig.serviceCacheDuration,
-        eq: {'active': true, 'subcat_id': subcategoryId},
+        eq: {'active': true, 'status': 'approved', 'subcat_id': subcategoryId},
         orderBy: 'created_at',
         ascending: false,
         select: '*, service_files(*), profiles!fk_services_user(name, is_verified)',
@@ -1053,10 +1081,41 @@ class ServiceProvider with ChangeNotifier {
     }
   }
 
+  /// Fetch all services owned by the current user (all statuses — for My Services screen)
+  Future<void> fetchMyServices() async {
+    final userId = _supabase.currentUser?.id;
+    if (userId == null) {
+      _myServices = [];
+      notifyListeners();
+      return;
+    }
+
+    _isLoadingMyServices = true;
+    notifyListeners();
+
+    try {
+      final data = await _supabase.client
+          .from('services')
+          .select('*, service_files(*), profiles!fk_services_user(name, is_verified)')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      _myServices = (data as List).map((json) => Service.fromJson(json)).toList();
+    } catch (e) {
+      if (kDebugMode) {
+        print('ServiceProvider: ❌ fetchMyServices error: $e');
+      }
+    } finally {
+      _isLoadingMyServices = false;
+      notifyListeners();
+    }
+  }
+
   void clear() {
     _allServices = [];
     _services = [];
     _nearbyServices = [];
+    _myServices = [];
     _error = null;
     _nearbyError = null;
     _currentCategoryId = null;
@@ -1159,44 +1218,54 @@ class ServiceProvider with ChangeNotifier {
     _realtime.subscribeToServices(
       onInsert: (service) {
         if (kDebugMode) {
-          print('RealtimeService: New service added: ${service.title}');
-        }
-        // Update master list (_allServices)
-        final allExistingIndex = _allServices.indexWhere((s) => s.id == service.id);
-        if (allExistingIndex >= 0) {
-          _allServices[allExistingIndex] = service;
-        } else {
-          _allServices.insert(0, service);
+          print('RealtimeService: New service added: ${service.title}, status: ${service.status}');
         }
 
-        // Update current view list (_services)
-        final existingIndex = _services.indexWhere((s) => s.id == service.id);
-        if (existingIndex >= 0) {
-          _services[existingIndex] = service;
-          if (kDebugMode) {
-            print('RealtimeService: Service ${service.id} already exists, updating instead');
+        // Always update _myServices if this is the current user's service
+        final currentUserId = _supabase.currentUser?.id;
+        if (service.supabaseUserId == currentUserId) {
+          final myIdx = _myServices.indexWhere((s) => s.id == service.id);
+          if (myIdx >= 0) {
+            _myServices[myIdx] = service;
+          } else {
+            _myServices.insert(0, service);
           }
-        } else {
-          _services.insert(0, service);
         }
 
-        // Add to nearby if within range
-        if (_userLocation != null && service.lat != 0 && service.lng != 0) {
-          final distance = _calculateDistance(
-            _userLocation!.latitude,
-            _userLocation!.longitude,
-            service.lat,
-            service.lng,
-          );
-          if (distance <= 10.0) {
-            service.distance = distance;
-            final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == service.id);
-            if (nearbyIndex >= 0) {
-              _nearbyServices[nearbyIndex] = service;
-            } else {
-              _nearbyServices.add(service);
+        // Only add to public lists if approved
+        if (service.status == 'approved') {
+          final allExistingIndex = _allServices.indexWhere((s) => s.id == service.id);
+          if (allExistingIndex >= 0) {
+            _allServices[allExistingIndex] = service;
+          } else {
+            _allServices.insert(0, service);
+          }
+
+          final existingIndex = _services.indexWhere((s) => s.id == service.id);
+          if (existingIndex >= 0) {
+            _services[existingIndex] = service;
+          } else {
+            _services.insert(0, service);
+          }
+
+          // Add to nearby if within range
+          if (_userLocation != null && service.lat != 0 && service.lng != 0) {
+            final distance = _calculateDistance(
+              _userLocation!.latitude,
+              _userLocation!.longitude,
+              service.lat,
+              service.lng,
+            );
+            if (distance <= 10.0) {
+              service.distance = distance;
+              final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == service.id);
+              if (nearbyIndex >= 0) {
+                _nearbyServices[nearbyIndex] = service;
+              } else {
+                _nearbyServices.add(service);
+              }
+              _nearbyServices.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
             }
-            _nearbyServices.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
           }
         }
         // Invalidate caches
@@ -1205,49 +1274,74 @@ class ServiceProvider with ChangeNotifier {
       },
       onUpdate: (service) {
         if (kDebugMode) {
-          print('RealtimeService: Service updated: ${service.title}');
-          print('RealtimeService: New rating: ${service.averageRating}, reviews: ${service.totalReviews}');
-        }
-        // Update in master list (_allServices)
-        final allIndex = _allServices.indexWhere((s) => s.id == service.id);
-        if (allIndex != -1) {
-          final existingAll = _allServices[allIndex];
-          final updatedAll = service.copyWith(
-            files: service.files.isEmpty ? existingAll.files : service.files,
-            distance: existingAll.distance,
-          );
-          _allServices[allIndex] = updatedAll;
+          print('RealtimeService: Service updated: ${service.title}, status: ${service.status}');
         }
 
-        // Update in current view list (_services)
-        final index = _services.indexWhere((s) => s.id == service.id);
-        if (index != -1) {
-          final existingService = _services[index];
-          final updatedService = service.copyWith(
-            files: service.files.isEmpty ? existingService.files : service.files,
-            distance: existingService.distance,
-          );
-          _services[index] = updatedService;
+        // Always update in _myServices
+        final currentUserId = _supabase.currentUser?.id;
+        if (service.supabaseUserId == currentUserId) {
+          final myIdx = _myServices.indexWhere((s) => s.id == service.id);
+          if (myIdx >= 0) {
+            _myServices[myIdx] = service.copyWith(
+              files: service.files.isEmpty ? _myServices[myIdx].files : service.files,
+            );
+          }
         }
 
-        // Update in nearby list
-        final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == service.id);
-        if (nearbyIndex != -1) {
-          final existingNearby = _nearbyServices[nearbyIndex];
-          double? distance = existingNearby.distance;
+        final isApproved = service.status == 'approved';
+        final wasInPublicList = _allServices.any((s) => s.id == service.id);
+
+        if (isApproved) {
+          // Update or add to public lists
+          final allIndex = _allServices.indexWhere((s) => s.id == service.id);
+          if (allIndex != -1) {
+            final existingAll = _allServices[allIndex];
+            _allServices[allIndex] = service.copyWith(
+              files: service.files.isEmpty ? existingAll.files : service.files,
+              distance: existingAll.distance,
+            );
+          } else {
+            // Newly approved — add to public lists
+            _allServices.insert(0, service);
+          }
+
+          final index = _services.indexWhere((s) => s.id == service.id);
+          if (index != -1) {
+            final existingService = _services[index];
+            _services[index] = service.copyWith(
+              files: service.files.isEmpty ? existingService.files : service.files,
+              distance: existingService.distance,
+            );
+          } else if (!wasInPublicList) {
+            _services.insert(0, service);
+          }
+
+          // Update/add in nearby list
           if (_userLocation != null && service.lat != 0 && service.lng != 0) {
-            distance = _calculateDistance(
+            final distance = _calculateDistance(
               _userLocation!.latitude,
               _userLocation!.longitude,
               service.lat,
               service.lng,
             );
+            if (distance <= 10.0) {
+              service.distance = distance;
+              final nearbyIndex = _nearbyServices.indexWhere((s) => s.id == service.id);
+              if (nearbyIndex >= 0) {
+                _nearbyServices[nearbyIndex] = service.copyWith(distance: distance);
+              } else {
+                _nearbyServices.add(service.copyWith(distance: distance));
+                _nearbyServices.sort((a, b) => (a.distance ?? 0).compareTo(b.distance ?? 0));
+              }
+            } else {
+              _nearbyServices.removeWhere((s) => s.id == service.id);
+            }
           }
-          final updatedNearby = service.copyWith(
-            files: service.files.isEmpty ? existingNearby.files : service.files,
-            distance: distance,
-          );
-          _nearbyServices[nearbyIndex] = updatedNearby;
+        } else {
+          // Not approved — remove from all public lists
+          _allServices.removeWhere((s) => s.id == service.id);
+          _services.removeWhere((s) => s.id == service.id);
+          _nearbyServices.removeWhere((s) => s.id == service.id);
         }
         // Invalidate caches
         clearAllCache();
@@ -1261,6 +1355,7 @@ class ServiceProvider with ChangeNotifier {
         _allServices.removeWhere((s) => s.id == id);
         _services.removeWhere((s) => s.id == id);
         _nearbyServices.removeWhere((s) => s.id == id);
+        _myServices.removeWhere((s) => s.id == id);
         // Invalidate caches
         clearAllCache();
         notifyListeners();
@@ -1325,15 +1420,77 @@ class ServiceProvider with ChangeNotifier {
       },
     );
 
+    // Subscribe to global service_files changes (admin image replace/add/delete).
+    // Re-fetch from DB on every event — avoids ID mismatch with legacy id:0 files.
+    _realtime.subscribeToAllServiceFiles(
+      onUpdate: (serviceId, _) => refreshServiceFiles(serviceId),
+      onInsert: (serviceId, _) => refreshServiceFiles(serviceId),
+      onDelete: (serviceId, fileId) {
+        if (serviceId != 0) {
+          refreshServiceFiles(serviceId);
+        }
+      },
+    );
+
     if (kDebugMode) {
       print('ServiceProvider: Subscribed to real-time updates');
     }
+  }
+
+  /// Re-fetch service_files from DB and update the service in all in-memory lists.
+  /// Returns the fresh files list so callers can also update their local state.
+  Future<List<ServiceFile>> refreshServiceFiles(int serviceId) async {
+    if (serviceId == 0) return [];
+    try {
+      final data = await _supabase.client
+          .from('service_files')
+          .select()
+          .eq('service_id', serviceId);
+      final freshFiles = (data as List)
+          .map((f) => ServiceFile.fromJson(f as Map<String, dynamic>))
+          .toList();
+      _applyServiceFileChange(serviceId, (_) => freshFiles);
+      return freshFiles;
+    } catch (e) {
+      debugPrint('ServiceProvider: Error refreshing files for service $serviceId: $e');
+      return [];
+    }
+  }
+
+  /// Apply a files mutation across all in-memory lists and notify listeners.
+  void _applyServiceFileChange(int serviceId, List<ServiceFile> Function(List<ServiceFile>) updater) {
+    bool changed = false;
+
+    final allIdx = _allServices.indexWhere((s) => s.id == serviceId);
+    if (allIdx != -1) {
+      _allServices[allIdx] = _allServices[allIdx].copyWith(
+        files: updater(List<ServiceFile>.from(_allServices[allIdx].files)),
+      );
+      changed = true;
+    }
+
+    final sIdx = _services.indexWhere((s) => s.id == serviceId);
+    if (sIdx != -1) {
+      _services[sIdx] = _services[sIdx].copyWith(
+        files: updater(List<ServiceFile>.from(_services[sIdx].files)),
+      );
+    }
+
+    final nIdx = _nearbyServices.indexWhere((s) => s.id == serviceId);
+    if (nIdx != -1) {
+      _nearbyServices[nIdx] = _nearbyServices[nIdx].copyWith(
+        files: updater(List<ServiceFile>.from(_nearbyServices[nIdx].files)),
+      );
+    }
+
+    if (changed) notifyListeners();
   }
 
   /// Unsubscribe from real-time updates
   void unsubscribeFromRealtime() {
     _realtime.unsubscribeFromServices();
     _realtime.unsubscribeFromProfiles();
+    _realtime.unsubscribeFromAllServiceFiles();
     if (kDebugMode) {
       print('ServiceProvider: Unsubscribed from real-time updates');
     }

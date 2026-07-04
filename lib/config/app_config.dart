@@ -4,10 +4,10 @@ class AppConfig {
   // SUPABASE CONFIGURATION
   // ========================================
   /// Your Supabase project URL
-  static const String supabaseUrl = 'https://exnbjsehnyqjgllgmjxt.supabase.co';
+  static const String supabaseUrl = 'https://tnqxqqurxyyvhpqoknlm.supabase.co';
 
   /// Your Supabase anonymous/public key
-  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4bmJqc2VobnlxamdsbGdtanh0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyMTc0NzgsImV4cCI6MjA4MDc5MzQ3OH0.LqJxMKL2KBanDNmnDhaLyAQiv9xTQBByORSO8NN-Zmk';
+  static const String supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRucXhxcXVyeHl5dmhwcW9rbmxtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMjM0MjksImV4cCI6MjA5Mzg5OTQyOX0.e2L0TA9RNOXdkDp-lVVgL5cJkjqI2OXWWBU2Uo-G_BE';
 
   // ========================================
   // CACHE CONFIGURATION

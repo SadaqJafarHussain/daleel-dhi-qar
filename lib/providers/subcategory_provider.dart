@@ -36,9 +36,14 @@ class SubcategoryProvider with ChangeNotifier {
     }
   }
 
-  /// Get subcategory name by ID
+  /// Get subcategory name by ID (always Arabic – used for DB enrichment)
   String? getSubcategoryNameById(int id) {
     return getById(id)?.name;
+  }
+
+  /// Get localized subcategory name by ID
+  String? getLocalizedSubcategoryNameById(int id, bool isAr) {
+    return getById(id)?.localizedName(isAr);
   }
 
   // Check if category has subcategories

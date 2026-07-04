@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
 import 'package:tour_guid/providers/favorites_provider.dart';
 import 'package:tour_guid/providers/language_provider.dart';
@@ -18,6 +19,222 @@ import '../widgets/profile_app_bar.dart';
 import '../widgets/profile_menu_item.dart';
 import '../widgets/profile_section_header.dart';
 import '../widgets/profile_stat_card.dart';
+
+class _VerificationRequestButton extends StatefulWidget {
+  final String userId;
+  final bool isVerified;
+  final double w;
+  final double h;
+  final String Function(String) t;
+
+  const _VerificationRequestButton({
+    required this.userId,
+    required this.isVerified,
+    required this.w,
+    required this.h,
+    required this.t,
+  });
+
+  @override
+  State<_VerificationRequestButton> createState() => _VerificationRequestButtonState();
+}
+
+class _VerificationRequestButtonState extends State<_VerificationRequestButton> {
+  bool _hasPending = false;
+  bool _loading    = true;
+  bool _submitting = false;
+  bool _isVerified = false;
+  RealtimeChannel? _channel;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkStatus();
+    _subscribeToProfile();
+  }
+
+  @override
+  void dispose() {
+    _channel?.unsubscribe();
+    super.dispose();
+  }
+
+  Future<void> _checkStatus() async {
+    try {
+      final client = Supabase.instance.client;
+      final results = await Future.wait([
+        client.from('profiles')
+            .select('is_verified')
+            .eq('id', widget.userId)
+            .maybeSingle(),
+        client.from('verification_requests')
+            .select('id')
+            .eq('user_id', widget.userId)
+            .eq('status', 'pending')
+            .maybeSingle(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _isVerified = results[0]?['is_verified'] == true;
+          _hasPending = results[1] != null;
+          _loading    = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _subscribeToProfile() {
+    _channel = Supabase.instance.client
+        .channel('vr_btn_${widget.userId}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'profiles',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'id',
+            value: widget.userId,
+          ),
+          callback: (payload) {
+            if (mounted && payload.newRecord['is_verified'] == true) {
+              setState(() {
+                _isVerified = true;
+                _hasPending = false;
+              });
+            }
+          },
+        )
+        .subscribe();
+  }
+
+  Future<void> _checkPending() async {
+    // kept for compatibility
+  }
+
+  Future<void> _submitRequest() async {
+    setState(() => _submitting = true);
+    try {
+      await Supabase.instance.client.from('verification_requests').insert({
+        'user_id': widget.userId,
+        'status': 'pending',
+      });
+      if (mounted) setState(() { _hasPending = true; _submitting = false; });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(widget.t('verification_request_sent')),
+          backgroundColor: const Color(0xFF1E3A2C),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ));
+      }
+    } catch (_) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const SizedBox.shrink();
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // ── Already verified — grayed-out message ──────────────────────────────
+    if (_isVerified) {
+      return Container(
+        margin: EdgeInsets.symmetric(horizontal: widget.w * 0.045, vertical: 4),
+        padding: EdgeInsets.symmetric(horizontal: widget.w * 0.04, vertical: widget.h * 0.015),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade800.withOpacity(0.4) : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: isDark ? Colors.grey.shade700 : Colors.grey.shade300),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.verified_rounded,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade400, size: 20),
+            SizedBox(width: widget.w * 0.03),
+            Text(
+              widget.t('account_verified'),
+              style: TextStyle(
+                fontSize: AppTextSizes.bodySmall,
+                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // ── Request / Pending ───────────────────────────────────────────────────
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: widget.w * 0.045, vertical: 4),
+      child: InkWell(
+        onTap: _hasPending || _submitting ? null : _submitRequest,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: widget.w * 0.04, vertical: widget.h * 0.018),
+          decoration: BoxDecoration(
+            color: _hasPending
+                ? (isDark ? Colors.amber.shade900.withOpacity(0.3) : const Color(0xFFFEF3C7))
+                : (isDark ? const Color(0xFF1E3A2C).withOpacity(0.3) : const Color(0xFFECFDF5)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _hasPending ? const Color(0xFFF59E0B) : const Color(0xFF1E3A2C),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                _hasPending ? Icons.hourglass_top_rounded : Icons.verified_user_outlined,
+                color: _hasPending ? const Color(0xFFF59E0B) : const Color(0xFF1E3A2C),
+                size: widget.w * 0.055,
+              ),
+              SizedBox(width: widget.w * 0.03),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _hasPending
+                          ? widget.t('verification_pending')
+                          : widget.t('request_verification'),
+                      style: TextStyle(
+                        fontSize: AppTextSizes.bodyMedium,
+                        fontWeight: FontWeight.w600,
+                        color: _hasPending ? const Color(0xFFF59E0B) : const Color(0xFF1E3A2C),
+                      ),
+                    ),
+                    Text(
+                      _hasPending
+                          ? widget.t('verification_pending_hint')
+                          : widget.t('request_verification_hint'),
+                      style: TextStyle(
+                        fontSize: AppTextSizes.bodySmall,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_submitting)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: const Color(0xFF1E3A2C),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -41,17 +258,11 @@ class ProfileScreen extends StatelessWidget {
 
     // Filter services by supabaseUserId (UUID) not int userId
     final mySupabaseId = authProvider.supabaseUserId;
-    debugPrint('ProfileScreen: My Supabase ID = $mySupabaseId');
-    debugPrint('ProfileScreen: Total services = ${serviceProvider.services.length}');
-    for (var s in serviceProvider.services) {
-      debugPrint('ProfileScreen: Service "${s.title}" has supabaseUserId = ${s.supabaseUserId}');
-    }
 
-    final myServices = serviceProvider.services
+    final myServices = serviceProvider.allServices
         .where((s) => s.supabaseUserId != null &&
                       s.supabaseUserId == mySupabaseId)
         .toList();
-    debugPrint('ProfileScreen: My services count = ${myServices.length}');
 
     // Calculate average rating from user's services
     double averageRating = 0.0;
@@ -66,7 +277,7 @@ class ProfileScreen extends StatelessWidget {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: CustomScrollView(
         slivers: [
-          ProfileAppBar(width: w, height: h, user: userData),
+          ProfileAppBar(width: w, height: h, user: userData, userId: mySupabaseId),
           SliverToBoxAdapter(
             child: Column(
               children: [
@@ -160,6 +371,17 @@ class ProfileScreen extends StatelessWidget {
                   width: w,
                   height: h,
                 ),
+
+                // Verification request (only if logged in)
+                if (authProvider.supabaseUserId != null)
+                  _VerificationRequestButton(
+                    userId: authProvider.supabaseUserId!,
+                    isVerified: false, // fetched dynamically inside widget
+                    w: w,
+                    h: h,
+                    t: t,
+                  ),
+
                 SizedBox(height: h * 0.02),
 
                 // ✅ Logout
@@ -243,9 +465,6 @@ class ProfileScreen extends StatelessWidget {
 
                     _buildFeatureItem(context, Icons.favorite_rounded, t('save_favorites'),
                         const Color(0xFFEF4444), w),
-                    SizedBox(height: h * 0.01),
-                    _buildFeatureItem(context, Icons.history_rounded, t('track_orders'),
-                        const Color(0xFF3B82F6), w),
                     SizedBox(height: h * 0.01),
                     _buildFeatureItem(context, Icons.star_rounded, t('rate_share'),
                         const Color(0xFF8B5CF6), w),

@@ -25,10 +25,10 @@ class CategoryProvider with ChangeNotifier {
   Future<void> init(BuildContext context) async {
     _context = context;
     await _loadFromCache();
-    await fetchCategories(context);
+    await fetchCategories(context, forceRefresh: true);
   }
 
-  Future<void> fetchCategories(BuildContext context) async {
+  Future<void> fetchCategories(BuildContext context, {bool forceRefresh = false}) async {
     // Prevent concurrent fetch attempts
     if (_isFetching) {
       debugPrint('CategoryProvider: Fetch already in progress, skipping');
@@ -49,6 +49,7 @@ class CategoryProvider with ChangeNotifier {
           cacheDuration: AppConfig.categoryCacheDuration,
           eq: {'active': true},
           orderBy: 'id',
+          forceRefresh: forceRefresh,
         );
 
         // If cache returned empty, try ONE refresh from server (no retry loop)
@@ -81,11 +82,21 @@ class CategoryProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Get category name by ID
+  /// Get category name by ID (always Arabic – used for DB enrichment)
   String? getCategoryNameById(int id) {
     try {
       final category = _categories.firstWhere((cat) => cat.id == id);
       return category.name;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Get localized category name by ID
+  String? getLocalizedCategoryNameById(int id, bool isAr) {
+    try {
+      final category = _categories.firstWhere((cat) => cat.id == id);
+      return category.localizedName(isAr);
     } catch (e) {
       return null;
     }
@@ -112,9 +123,9 @@ class CategoryProvider with ChangeNotifier {
     _realtime.subscribeToCategories(
       onAnyChange: () {
         debugPrint('CategoryProvider: Real-time category change detected');
-        // Refresh categories when any change is detected
+        // Refresh categories when any change is detected, bypassing cache
         if (_context != null) {
-          fetchCategories(_context!);
+          fetchCategories(_context!, forceRefresh: true);
         }
       },
     );

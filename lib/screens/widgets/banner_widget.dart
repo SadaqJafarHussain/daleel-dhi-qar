@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/adds_model.dart';
@@ -62,6 +63,14 @@ class _AdsBannerSliderState extends State<AdsBannerSlider> {
 
   Future<void> _handleAdTap(AdvModel ad) async {
     HapticFeedback.lightImpact();
+
+    // Track click (fire-and-forget)
+    Supabase.instance.client
+        .from('ads')
+        .update({'clicks': (ad.clicks ?? 0) + 1})
+        .eq('id', ad.id)
+        .then((_) {})
+        .catchError((_) {});
 
     switch (ad.adType) {
       case AdType.servicePromotion:
@@ -292,9 +301,10 @@ class _AdsBannerSliderState extends State<AdsBannerSlider> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Title
-          if (ad.title.isNotEmpty)
-            Text(
+          // Title — fixed 2-line height so all cards align consistently
+          SizedBox(
+            height: 46,
+            child: Text(
               ad.title,
               style: const TextStyle(
                 color: Colors.white,
@@ -312,10 +322,13 @@ class _AdsBannerSliderState extends State<AdsBannerSlider> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+          ),
 
-          if (ad.content.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Text(
+          // Content — fixed 2-line height
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 38,
+            child: Text(
               ad.content,
               style: TextStyle(
                 color: Colors.white.withOpacity(0.9),
@@ -326,7 +339,7 @@ class _AdsBannerSliderState extends State<AdsBannerSlider> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-          ],
+          ),
 
           // Action Button
           if (ad.hasAction) ...[

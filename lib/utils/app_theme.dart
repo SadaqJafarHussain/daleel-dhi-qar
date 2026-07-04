@@ -6,10 +6,109 @@
 import 'package:flutter/material.dart';
 
 class AppThemes {
-  // Your Brand Colors
+  // Your Brand Colors (fallback defaults)
   static const Color primaryRose = Color(0xFFB91C4C);
   static const Color secondaryGreen = Color(0xFF1E3A2C);
   static const Color accentGreen = Color(0xFF16A34A);
+
+  /// Build light theme with dynamic primary and secondary colors from admin.
+  static ThemeData buildLightTheme(Color primary, [Color? secondary]) => lightTheme.copyWith(
+    primaryColor: primary,
+    colorScheme: lightTheme.colorScheme.copyWith(
+      primary: primary,
+      secondary: secondary,
+    ),
+    appBarTheme: lightTheme.appBarTheme.copyWith(backgroundColor: primary),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary,
+        side: BorderSide(color: primary, width: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: primary,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    ),
+    inputDecorationTheme: lightTheme.inputDecorationTheme.copyWith(
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: MaterialStateProperty.resolveWith(
+        (s) => s.contains(MaterialState.selected) ? primary : Colors.grey.shade400,
+      ),
+      trackColor: MaterialStateProperty.resolveWith(
+        (s) => s.contains(MaterialState.selected) ? primary.withOpacity(0.5) : Colors.grey.shade300,
+      ),
+    ),
+    bottomNavigationBarTheme: lightTheme.bottomNavigationBarTheme.copyWith(
+      selectedItemColor: primary,
+    ),
+  );
+
+  /// Build dark theme with dynamic primary and secondary colors from admin.
+  static ThemeData buildDarkTheme(Color primary, [Color? secondary]) => darkTheme.copyWith(
+    primaryColor: primary,
+    colorScheme: darkTheme.colorScheme.copyWith(
+      primary: primary,
+      secondary: secondary,
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: primary,
+        side: BorderSide(color: primary, width: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    ),
+    textButtonTheme: TextButtonThemeData(
+      style: TextButton.styleFrom(
+        foregroundColor: primary,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+    ),
+    inputDecorationTheme: darkTheme.inputDecorationTheme.copyWith(
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: primary, width: 2),
+      ),
+    ),
+    switchTheme: SwitchThemeData(
+      thumbColor: MaterialStateProperty.resolveWith(
+        (s) => s.contains(MaterialState.selected) ? primary : Colors.grey.shade600,
+      ),
+      trackColor: MaterialStateProperty.resolveWith(
+        (s) => s.contains(MaterialState.selected) ? primary.withOpacity(0.5) : Colors.grey.shade700,
+      ),
+    ),
+    bottomNavigationBarTheme: darkTheme.bottomNavigationBarTheme.copyWith(
+      selectedItemColor: primary,
+    ),
+  );
 
   // Light Theme
   static ThemeData lightTheme = ThemeData(

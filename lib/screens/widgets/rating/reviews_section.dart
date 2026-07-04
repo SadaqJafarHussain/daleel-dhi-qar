@@ -9,6 +9,7 @@ import 'add_review_sheet.dart';
 import 'rating_breakdown.dart';
 import 'review_card.dart';
 import 'star_rating_display.dart';
+import '../report_sheet.dart';
 
 /// Complete reviews section for service details page
 class ReviewsSection extends StatefulWidget {
@@ -249,7 +250,18 @@ class _ReviewsSectionState extends State<ReviewsSection> {
                           }
                         : null,
                     onReport: widget.isLoggedIn && !isOwn
-                        ? () => _showReportDialog(loc)
+                        ? () {
+                            final authProvider = context.read<AuthProvider>();
+                            final uid = authProvider.supabaseUserId;
+                            if (uid != null) {
+                              showReportSheet(
+                                context,
+                                targetType: 'review',
+                                targetId: review.id.toString(),
+                                reporterId: uid,
+                              );
+                            }
+                          }
                         : null,
                   );
                 },
@@ -552,42 +564,6 @@ class _ReviewsSectionState extends State<ReviewsSection> {
     );
   }
 
-  void _showReportDialog(AppLocalizations loc) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: isDark ? Colors.grey.shade900 : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        title: Text(loc.t('report_review')),
-        content: Text(loc.t('report_review_confirm')),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(loc.t('cancel')),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(this.context).showSnackBar(
-                SnackBar(
-                  content: Text(loc.t('review_reported')),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              );
-            },
-            child: Text(loc.t('report')),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Compact rating display for service cards

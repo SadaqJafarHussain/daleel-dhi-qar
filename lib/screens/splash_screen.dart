@@ -3,15 +3,19 @@
 // Location: lib/main.dart
 // ============================================
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tour_guid/screens/main_screen.dart';
 
 import '../providers/auth_provider.dart';
+import '../providers/app_config_provider.dart';
+import '../providers/language_provider.dart';
 import '../utils/app_localization.dart';
 import 'login_screen.dart';
 import 'onboarding_screen.dart';
 import 'complete_profile_screen.dart';
+import 'force_update_screen.dart';
 
 
 // ============================================
@@ -33,9 +37,22 @@ class _SplashScreenState extends State<SplashScreen> {
 
   Future<void> _checkInitialRoute() async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final configProvider = Provider.of<AppConfigProvider>(context, listen: false);
 
-    // Initialize auth provider (restores session if exists)
-    await authProvider.init();
+    // Initialize auth + fetch config in parallel
+    await Future.wait([
+      authProvider.init(),
+      configProvider.fetchConfig(),
+    ]);
+
+    // Check for forced update
+    if (mounted && await _checkForceUpdate(configProvider)) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ForceUpdateScreen()),
+      );
+      return;
+    }
 
     // Check if onboarding has been completed
     final prefs = await SharedPreferences.getInstance();
@@ -79,9 +96,35 @@ class _SplashScreenState extends State<SplashScreen> {
     }
   }
 
+  Future<bool> _checkForceUpdate(AppConfigProvider cfg) async {
+    if (cfg.get('force_update_enabled') != 'true') return false;
+    final minVersion = cfg.get('min_version');
+    if (minVersion.isEmpty) return false;
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return _versionLessThan(info.version, minVersion);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Returns true if [current] is strictly less than [minimum].
+  bool _versionLessThan(String current, String minimum) {
+    final c = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    final m = minimum.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+    for (var i = 0; i < 3; i++) {
+      final cv = i < c.length ? c[i] : 0;
+      final mv = i < m.length ? m[i] : 0;
+      if (cv < mv) return true;
+      if (cv > mv) return false;
+    }
+    return false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final loc = AppLocalizations.of(context);
+    final appConfig = context.watch<AppConfigProvider>();
+    final isAr = context.watch<LanguageProvider>().isArabic;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -89,16 +132,31 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Your app logo here
             Image.asset(
               "assets/images/splash_logo.png",
-              width: 200,  // or any size you want
-              height: 200, // keep it square to match launcher icon
+              width: 200,
+              height: 200,
               fit: BoxFit.contain,
             ),
-             Text(loc.t('app_name'),style: TextStyle(color: Theme.of(context).textTheme.labelLarge!.color,fontWeight: FontWeight.w800,fontSize: 22),),
-            const SizedBox(height: 20),
-             CircularProgressIndicator(
+            Text(
+              appConfig.appName(isAr),
+              style: TextStyle(
+                color: Theme.of(context).textTheme.labelLarge!.color,
+                fontWeight: FontWeight.w800,
+                fontSize: 22,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              appConfig.appTagline(isAr),
+              style: TextStyle(
+                color: Theme.of(context).textTheme.bodyMedium!.color,
+                fontSize: 13,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            CircularProgressIndicator(
               color: Theme.of(context).primaryColor,
             ),
           ],

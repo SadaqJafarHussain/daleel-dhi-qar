@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
 import '../models/user_model.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/connectivity_service.dart';
@@ -249,6 +250,7 @@ class AuthProvider with ChangeNotifier {
       'interests': updatedUser.interests,
       'occupation': updatedUser.occupation,
       'avatar_url': updatedUser.avatarUrl,
+      'profile_completed': updatedUser.profileCompleted,
     });
 
     _isLoading = false;
@@ -286,10 +288,3 @@ class AuthProvider with ChangeNotifier {
   }
 }
 
-/// Auth state change event type
-enum AuthChangeEvent {
-  signedIn,
-  signedOut,
-  tokenRefreshed,
-  userUpdated,
-}

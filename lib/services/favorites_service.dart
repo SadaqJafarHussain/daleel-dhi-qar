@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/favorite.dart';
 import '../models/service_model.dart';
 import '../config/app_config.dart';
@@ -154,7 +155,11 @@ class FavoritesService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('FavoritesService: ❌ Error adding favorite: $e');
+        if (e is PostgrestException) {
+          print('FavoritesService: ❌ Error adding favorite — code: ${e.code}, message: ${e.message}, details: ${e.details}');
+        } else {
+          print('FavoritesService: ❌ Error adding favorite: $e');
+        }
       }
       return false;
     }
@@ -182,7 +187,11 @@ class FavoritesService {
       return true;
     } catch (e) {
       if (kDebugMode) {
-        print('FavoritesService: ❌ Error removing favorite: $e');
+        if (e is PostgrestException) {
+          print('FavoritesService: ❌ Error removing favorite — code: ${e.code}, message: ${e.message}, details: ${e.details}');
+        } else {
+          print('FavoritesService: ❌ Error removing favorite: $e');
+        }
       }
       return false;
     }
@@ -212,7 +221,11 @@ class FavoritesService {
       }
     } catch (e) {
       if (kDebugMode) {
-        print('FavoritesService: ❌ Error toggling favorite: $e');
+        if (e is PostgrestException) {
+          print('FavoritesService: ❌ Error toggling favorite — code: ${e.code}, message: ${e.message}, details: ${e.details}');
+        } else {
+          print('FavoritesService: ❌ Error toggling favorite: $e');
+        }
       }
       return false;
     }

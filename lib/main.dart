@@ -14,6 +14,10 @@ import 'package:tour_guid/providers/subcategory_provider.dart';
 import 'package:tour_guid/providers/theme_provider.dart';
 import 'package:tour_guid/providers/review_provider.dart';
 import 'package:tour_guid/providers/notification_provider.dart';
+import 'package:tour_guid/providers/app_settings_provider.dart';
+import 'package:tour_guid/providers/home_sections_provider.dart';
+import 'package:tour_guid/providers/home_sections_config_provider.dart';
+import 'package:tour_guid/providers/app_config_provider.dart';
 import 'package:tour_guid/screens/splash_screen.dart';
 import 'package:tour_guid/utils/app_localization.dart';
 import 'package:tour_guid/utils/app_theme.dart';
@@ -40,7 +44,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => AuthProvider()..init()),
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()..init()),
         ChangeNotifierProvider(create: (_) => LanguageProvider()..init()),
         ChangeNotifierProvider(create: (_) => AdvProvider()),
@@ -51,6 +55,10 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => ReviewProvider()),
         ChangeNotifierProvider(create: (_) => NotificationProvider()..initialize()),
+        ChangeNotifierProvider(create: (_) => AppSettingsProvider()),
+        ChangeNotifierProvider(create: (_) => HomeSectionsProvider()),
+        ChangeNotifierProvider(create: (_) => HomeSectionsConfigProvider()..fetchConfigs()),
+        ChangeNotifierProvider(create: (_) => AppConfigProvider()..fetchConfig()),
       ],
       child: const DaleelAwrApp(),
     ),
@@ -127,12 +135,17 @@ class _DaleelAwrAppState extends State<DaleelAwrApp> {
   Future<void> _initializeProviders() async {
     if (_isInitialized) return;
 
-    try {
-      final categoryProvider = Provider.of<CategoryProvider>(context, listen: false);
-      final subcategoryProvider = Provider.of<SubcategoryProvider>(context, listen: false);
-      final favoritesProvider = Provider.of<FavoritesProvider>(context, listen: false);
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    // Capture all providers synchronously before any await
+    final categoryProvider     = Provider.of<CategoryProvider>(context, listen: false);
+    final subcategoryProvider  = Provider.of<SubcategoryProvider>(context, listen: false);
+    final favoritesProvider    = Provider.of<FavoritesProvider>(context, listen: false);
+    final authProvider         = Provider.of<AuthProvider>(context, listen: false);
+    final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    final serviceProvider      = Provider.of<ServiceProvider>(context, listen: false);
+    final reviewProvider       = Provider.of<ReviewProvider>(context, listen: false);
+    final adsProvider          = Provider.of<AdvProvider>(context, listen: false);
 
+    try {
       // Wait for categories to load
       if (categoryProvider.categories.isEmpty && !categoryProvider.isLoading) {
         await categoryProvider.fetchCategories(context);
@@ -165,17 +178,14 @@ class _DaleelAwrAppState extends State<DaleelAwrApp> {
         favoritesProvider.subscribeToRealtime();
 
         // Initialize notifications for the user
-        final notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
         await notificationProvider.setUser(authProvider.supabaseUserId!);
       }
 
       // Fetch all services and subscribe to real-time updates
-      final serviceProvider = Provider.of<ServiceProvider>(context, listen: false);
       await serviceProvider.fetchAllServices();
       serviceProvider.subscribeToRealtime();
 
       // Connect ReviewProvider to ServiceProvider for rating updates
-      final reviewProvider = Provider.of<ReviewProvider>(context, listen: false);
       reviewProvider.setServiceProvider(serviceProvider);
 
       // Subscribe to real-time category updates
@@ -185,7 +195,6 @@ class _DaleelAwrAppState extends State<DaleelAwrApp> {
       subcategoryProvider.subscribeToRealtime();
 
       // Subscribe to real-time ads updates
-      final adsProvider = Provider.of<AdvProvider>(context, listen: false);
       adsProvider.subscribeToRealtime();
 
       _isInitialized = true;
@@ -196,8 +205,10 @@ class _DaleelAwrAppState extends State<DaleelAwrApp> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<ThemeProvider, LanguageProvider>(
-      builder: (context, themeProvider, languageProvider, child) {
+    return Consumer3<ThemeProvider, LanguageProvider, AppConfigProvider>(
+      builder: (context, themeProvider, languageProvider, appConfig, child) {
+        final primary   = appConfig.primaryColor;
+        final secondary = appConfig.secondaryColor;
         return MaterialApp(
           title: 'Daleel Dhi Qar',
           debugShowCheckedModeBanner: false,
@@ -218,17 +229,22 @@ class _DaleelAwrAppState extends State<DaleelAwrApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
 
-          // RTL/LTR Configuration
+          // RTL/LTR + Global font scale from admin
           builder: (context, child) {
-            return Directionality(
-              textDirection: languageProvider.textDirection,
-              child: child!,
+            return MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                textScaler: TextScaler.linear(appConfig.fontScale),
+              ),
+              child: Directionality(
+                textDirection: languageProvider.textDirection,
+                child: child!,
+              ),
             );
           },
 
-          // Theme Configuration
-          theme: AppThemes.lightTheme,
-          darkTheme: AppThemes.darkTheme,
+          // Theme Configuration (dynamic colors from admin)
+          theme: AppThemes.buildLightTheme(primary, secondary),
+          darkTheme: AppThemes.buildDarkTheme(primary, secondary),
           themeMode: themeProvider.themeMode,
 
           home: const SplashScreen(),

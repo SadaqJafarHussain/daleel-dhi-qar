@@ -41,8 +41,8 @@ class MapButton extends StatelessWidget {
         label:  Text(loc.t('show_on_map'),
             style: TextStyle(color: Colors.white)),
         style: OutlinedButton.styleFrom(
-          backgroundColor: const Color(0xFF1E3A2C),
-          side: const BorderSide(color: Color(0xFF1E3A2C), width: 1.5),
+          backgroundColor: Theme.of(context).colorScheme.secondary,
+          side: BorderSide(color: Theme.of(context).colorScheme.secondary, width: 1.5),
           shape:
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),

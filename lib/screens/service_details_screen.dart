@@ -5,9 +5,14 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'dart:async';
 import '../models/service_model.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/category_provider.dart';
+import '../providers/language_provider.dart';
 import '../providers/review_provider.dart';
 import '../providers/service_peovider.dart';
+import '../providers/subcategory_provider.dart';
+import '../services/realtime_service.dart';
 import '../utils/app_localization.dart';
 import '../utils/map_launcher.dart';
 import '../utils/retry_helper.dart';
@@ -15,6 +20,7 @@ import 'widgets/add_service_sheet.dart' show openEditServiceSheet;
 import 'widgets/favorite_button.dart';
 import 'widgets/rating/reviews_section.dart';
 import 'widgets/login_prompt_dialog.dart';
+import 'widgets/report_sheet.dart';
 
 class ServiceDetailsScreen extends StatefulWidget {
   final Service? service;
@@ -39,6 +45,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
   int _currentImageIndex = 0;
   Timer? _autoPlayTimer;
   bool _isDescriptionExpanded = false;
+  final _realtimeService = RealtimeService();
 
   @override
   void initState() {
@@ -49,9 +56,34 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       _service = widget.service!;
       _isLoading = false;
       _startAutoPlay();
+      _subscribeToServiceFiles();
     } else if (widget.serviceId != null) {
       _loadService();
     }
+  }
+
+  void _subscribeToServiceFiles() {
+    final serviceId = _service?.id ?? widget.serviceId;
+    if (serviceId == null) return;
+
+    _realtimeService.subscribeToServiceFiles(
+      serviceId: serviceId,
+      onUpdate: (_) => _reloadServiceFiles(serviceId),
+      onInsert: (_) => _reloadServiceFiles(serviceId),
+      onDelete: (_) => _reloadServiceFiles(serviceId),
+    );
+  }
+
+  /// Re-fetch service_files from DB and update the local service state.
+  Future<void> _reloadServiceFiles(int serviceId) async {
+    final provider = Provider.of<ServiceProvider>(context, listen: false);
+    final freshFiles = await provider.refreshServiceFiles(serviceId);
+    if (!mounted) return;
+    setState(() {
+      _service = _service!.copyWith(
+        files: freshFiles.isNotEmpty ? freshFiles : _service!.files,
+      );
+    });
   }
 
   Future<void> _loadService({bool isRetry = false}) async {
@@ -82,6 +114,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             _errorMessage = 'service_not_found';
           }
         });
+        if (service != null) _subscribeToServiceFiles();
       }
     } catch (e) {
       if (mounted) {
@@ -112,6 +145,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
 
   @override
   void dispose() {
+    final serviceId = _service?.id ?? widget.serviceId;
+    if (serviceId != null) _realtimeService.unsubscribeFromServiceFiles(serviceId);
     _autoPlayTimer?.cancel();
     _pageController.dispose();
     super.dispose();
@@ -222,7 +257,8 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   ],
 
                   // Reviews
-                  _buildReviewsSection(context, isDark, loc),
+                  if (context.read<AppConfigProvider>().featureReviews)
+                    _buildReviewsSection(context, isDark, loc),
                   const SizedBox(height: 40),
                 ]),
               ),
@@ -240,41 +276,212 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     final hasImages = images.isNotEmpty;
 
     return SliverAppBar(
-      expandedHeight: 280,
+      expandedHeight: 320,
       pinned: true,
       backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       foregroundColor: hasImages ? Colors.white : (isDark ? Colors.white : Colors.black),
-      leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.black.withOpacity(0.3),
-            shape: BoxShape.circle,
+      leading: Padding(
+        padding: const EdgeInsets.all(8),
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.35),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 8),
+              ],
+            ),
+            child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
           ),
-          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
         ),
-        onPressed: () => Navigator.pop(context),
       ),
       actions: [
-        Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Container(
-            margin: const EdgeInsets.only(right: 8),
-            decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.3),
-              shape: BoxShape.circle,
-            ),
-            child: FavoriteButton(
-              serviceId: _service!.id,
-              style: FavoriteButtonStyle.minimal,
+        Builder(builder: (ctx) {
+          final auth = ctx.read<AuthProvider>();
+          final isOwner = auth.user != null &&
+              _service?.userId == auth.user!.id;
+          if (auth.supabaseUserId != null && !isOwner) {
+            return Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.flag_outlined, color: Colors.white, size: 20),
+                  tooltip: loc.t('report'),
+                  onPressed: () => showReportSheet(
+                    context,
+                    targetType: 'service',
+                    targetId: _service!.id.toString(),
+                    reporterId: auth.supabaseUserId!,
+                  ),
+                ),
+              ),
+            );
+          }
+          return const SizedBox.shrink();
+        }),
+        if (context.read<AppConfigProvider>().featureSharing)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
+                tooltip: loc.t('share'),
+                onPressed: () {
+                  final service = _service!;
+                  final text = '${service.title}\n'
+                      '${service.address.isNotEmpty ? '📍 ${service.address}\n' : ''}'
+                      '${service.phone.isNotEmpty ? '📞 ${service.phone}' : ''}';
+                  Clipboard.setData(ClipboardData(text: text.trim()));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(loc.t('copied_to_clipboard')),
+                      behavior: SnackBarBehavior.floating,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-        ),
+        if (context.read<AppConfigProvider>().featureFavorites)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Container(
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: FavoriteButton(
+                serviceId: _service!.id,
+                style: FavoriteButtonStyle.minimal,
+              ),
+            ),
+          ),
       ],
       flexibleSpace: FlexibleSpaceBar(
-        background: hasImages
-            ? _buildImageGallery(images, isDark)
-            : _buildNoImagePlaceholder(isDark),
+        background: Stack(
+          fit: StackFit.expand,
+          children: [
+            hasImages
+                ? _buildImageGallery(images, isDark)
+                : _buildNoImagePlaceholder(isDark),
+            // Frosted info strip at bottom of hero
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.72),
+                    ],
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _service!.title,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              // Open/closed pill
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: _service!.isCurrentlyOpen
+                                      ? Colors.green.withOpacity(0.85)
+                                      : Colors.red.withOpacity(0.85),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      width: 5,
+                                      height: 5,
+                                      decoration: const BoxDecoration(
+                                          color: Colors.white, shape: BoxShape.circle),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _service!.isCurrentlyOpen
+                                          ? loc.t('open_now')
+                                          : loc.t('closed'),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Rating pill
+                              if ((_service!.averageRating ?? 0) > 0)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withOpacity(0.9),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.star, color: Colors.white, size: 11),
+                                      const SizedBox(width: 3),
+                                      Text(
+                                        _service!.averageRating!.toStringAsFixed(1),
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -548,6 +755,11 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
         final stats = reviewProvider.getStats(_service!.id);
         final rating = stats?.averageRating ?? _service!.averageRating ?? 0;
         final reviewCount = stats?.totalReviews ?? _service!.totalReviews ?? 0;
+        final isAr = context.read<LanguageProvider>().isArabic;
+        final catProvider = context.read<CategoryProvider>();
+        final subcatProvider = context.read<SubcategoryProvider>();
+        final displayCatName = catProvider.getLocalizedCategoryNameById(_service!.catId, isAr) ?? _service!.catName;
+        final displaySubcatName = subcatProvider.getLocalizedSubcategoryNameById(_service!.subcatId, isAr) ?? _service!.subcatName;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -556,7 +768,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             Row(
               children: [
                 // Category badge
-                if (_service!.catName.isNotEmpty)
+                if (displayCatName.isNotEmpty)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
@@ -564,7 +776,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      _service!.catName,
+                      displayCatName,
                       style: TextStyle(
                         color: Theme.of(context).primaryColor,
                         fontSize: 12,
@@ -617,10 +829,10 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                 color: isDark ? Colors.white : Colors.black87,
               ),
             ),
-            if (_service!.subcatName.isNotEmpty) ...[
+            if (displaySubcatName.isNotEmpty) ...[
               const SizedBox(height: 4),
               Text(
-                _service!.subcatName,
+                displaySubcatName,
                 style: TextStyle(
                   fontSize: 14,
                   color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
@@ -815,10 +1027,37 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     );
   }
 
+  /// Reusable section header: colored icon + title
+  Widget _sectionHeader(BuildContext context, bool isDark, String title, IconData icon, Color accent) {
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: accent.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: accent, size: 18),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.white : Colors.black87,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildDescriptionSection(BuildContext context, bool isDark, AppLocalizations loc) {
     final description = _service!.description;
     final isLong = description.length > 150;
 
+    final primary = Theme.of(context).primaryColor;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -835,14 +1074,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            loc.t('description'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
+          _sectionHeader(context, isDark, loc.t('description'), Icons.notes_rounded, primary),
           const SizedBox(height: 12),
           Text(
             _isDescriptionExpanded || !isLong
@@ -882,14 +1114,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            loc.t('working_hours'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
+          _sectionHeader(context, isDark, loc.t('working_hours'), Icons.access_time_rounded, Colors.orange),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -939,14 +1164,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  loc.t('location'),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: isDark ? Colors.white : Colors.black87,
-                  ),
-                ),
+                _sectionHeader(context, isDark, loc.t('location'), Icons.location_on_rounded, Colors.red),
                 const SizedBox(height: 12),
                 // Address row
                 InkWell(
@@ -1105,14 +1323,7 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            loc.t('social_media'),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: isDark ? Colors.white : Colors.black87,
-            ),
-          ),
+          _sectionHeader(context, isDark, loc.t('social_media'), Icons.share_rounded, const Color(0xFF1877F2)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
@@ -1207,7 +1418,12 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               ),
             ],
           ),
-          child: ReviewsSection(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionHeader(context, isDark, loc.t('reviews'), Icons.star_rounded, Colors.amber),
+              const SizedBox(height: 12),
+              ReviewsSection(
             service: _service!,
             currentUserId: authProvider.user?.id,
             isLoggedIn: authProvider.isAuthenticated,
@@ -1215,48 +1431,56 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
               showLoginPromptDialog(context, feature: 'write_review');
             },
           ),
+            ],
+          ),
         );
       },
     );
   }
 
   Widget _buildBottomBar(BuildContext context, bool isDark, AppLocalizations loc) {
+    final hasWhatsApp = _service!.whatsapp?.isNotEmpty ?? false;
+    final primary = Theme.of(context).primaryColor;
+
     return Container(
       padding: EdgeInsets.fromLTRB(
         16,
-        12,
+        10,
         16,
-        12 + MediaQuery.of(context).padding.bottom,
+        10 + MediaQuery.of(context).padding.bottom,
       ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, -2),
+            blurRadius: 12,
+            offset: const Offset(0, -3),
           ),
         ],
       ),
       child: Row(
         children: [
           // Call Button
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _makePhoneCall(_service!.phone),
-              icon: const Icon(Icons.phone),
-              label: Text(loc.t('call')),
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                side: BorderSide(color: Colors.green.shade400),
-                foregroundColor: Colors.green,
-              ),
-            ),
+          _BottomActionButton(
+            icon: Icons.phone_rounded,
+            label: loc.t('call'),
+            color: Colors.green,
+            onTap: () => _makePhoneCall(_service!.phone),
           ),
-          const SizedBox(width: 12),
-          // Directions Button
+          const SizedBox(width: 8),
+          // WhatsApp Button (if available)
+          if (hasWhatsApp) ...[
+            _BottomActionButton(
+              icon: Icons.chat_rounded,
+              label: 'WhatsApp',
+              color: const Color(0xFF25D366),
+              onTap: () => _launchWhatsApp(_service!.whatsapp!),
+            ),
+            const SizedBox(width: 8),
+          ],
+          // Directions Button (primary, larger)
           Expanded(
-            flex: 2,
             child: ElevatedButton.icon(
               onPressed: () {
                 if (!_checkAuthForContact('view_location')) return;
@@ -1267,12 +1491,17 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
                   placeName: _service!.title,
                 );
               },
-              icon: const Icon(Icons.directions),
-              label: Text(loc.t('directions')),
+              icon: const Icon(Icons.directions_rounded, size: 20),
+              label: Text(
+                loc.t('directions'),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                backgroundColor: Theme.of(context).primaryColor,
+                backgroundColor: primary,
                 foregroundColor: Colors.white,
+                elevation: 2,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
             ),
           ),
@@ -1452,5 +1681,48 @@ class _ServiceDetailsScreenState extends State<ServiceDetailsScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+}
+
+// ── Bottom Action Button (icon-only pill) ─────────────────────────────────────
+
+class _BottomActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _BottomActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: color.withOpacity(0.3), width: 1.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                  color: color, fontSize: 10, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

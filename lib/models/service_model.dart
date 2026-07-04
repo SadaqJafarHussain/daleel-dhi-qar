@@ -40,6 +40,13 @@ class Service {
   // Favorites count
   final int favoritesCount;
 
+  // Admin-featured flag
+  final bool isFeatured;
+
+  // Approval system
+  final String status;           // 'pending' | 'approved' | 'rejected'
+  final String? rejectionReason;
+
   Service({
     required this.id,
     required this.userId,
@@ -73,6 +80,9 @@ class Service {
     this.isOpen24Hours,
     this.isOwnerVerified = false,
     this.favoritesCount = 0,
+    this.isFeatured = false,
+    this.status = 'approved',
+    this.rejectionReason,
   });
 
   /// Check if the service is currently open based on working hours
@@ -238,6 +248,9 @@ class Service {
       isOpen24Hours: json['is_open_24_hours'] == 1 || json['is_open_24_hours'] == true,
       isOwnerVerified: isOwnerVerified,
       favoritesCount: int.tryParse((json['favorites_count'] ?? '0').toString()) ?? 0,
+      isFeatured: json['is_featured'] == true || json['is_featured'] == 1,
+      status: json['status'] as String? ?? 'approved',
+      rejectionReason: json['rejection_reason'] as String?,
     );
   }
 
@@ -274,6 +287,9 @@ class Service {
       'is_manual_override': isManualOverride == true ? 1 : 0,
       'is_open_24_hours': isOpen24Hours == true ? 1 : 0,
       'favorites_count': favoritesCount,
+      'is_featured': isFeatured ? 1 : 0,
+      'status': status,
+      if (rejectionReason != null) 'rejection_reason': rejectionReason,
     };
   }
 
@@ -312,6 +328,7 @@ class Service {
       isOpen24Hours: false,
       isOwnerVerified: false,
       favoritesCount: 0,
+      isFeatured: false,
     );
   }
 
@@ -349,6 +366,9 @@ class Service {
     bool? isOpen24Hours,
     bool? isOwnerVerified,
     int? favoritesCount,
+    bool? isFeatured,
+    String? status,
+    String? rejectionReason,
   }) {
     return Service(
       id: id ?? this.id,
@@ -383,6 +403,9 @@ class Service {
       isOpen24Hours: isOpen24Hours ?? this.isOpen24Hours,
       isOwnerVerified: isOwnerVerified ?? this.isOwnerVerified,
       favoritesCount: favoritesCount ?? this.favoritesCount,
+      isFeatured: isFeatured ?? this.isFeatured,
+      status: status ?? this.status,
+      rejectionReason: rejectionReason ?? this.rejectionReason,
     );
   }
 }

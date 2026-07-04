@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
+import 'package:tour_guid/providers/language_provider.dart';
 import 'package:tour_guid/screens/widgets/service_image_widget.dart';
 import '../../models/subcategory_model.dart';
 import '../../utils/app_localization.dart';
@@ -450,6 +451,7 @@ class _ServicesListSectionState extends State<ServicesListSection> {
       ) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final color = _getColorForIndex(index);
+    final isAr = context.read<LanguageProvider>().isArabic;
 
     return GestureDetector(
       onTap: () {
@@ -458,7 +460,7 @@ class _ServicesListSectionState extends State<ServicesListSection> {
           MaterialPageRoute(
             builder: (context) => ServicesScreen.fromSubcategory(
               subcategoryId: subcategory.id,
-              subcategoryName: subcategory.name,
+              subcategoryName: subcategory.localizedName(isAr),
               parentCategoryId: subcategory.catId,
             ),
           ),
@@ -507,7 +509,7 @@ class _ServicesListSectionState extends State<ServicesListSection> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    subcategory.name,
+                    subcategory.localizedName(isAr),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontSize: AppTextSizes.cardTitle,
                     ),

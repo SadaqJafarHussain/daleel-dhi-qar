@@ -219,6 +219,7 @@ class FavoritesProvider with ChangeNotifier {
         // Revert optimistic update
         _revertOptimisticUpdate(wasLiked, serviceId, removedFavorite);
         _isFavoriteLoading = false;
+        _pendingToggles.remove(serviceId);
         notifyListeners();
         return false;
       }

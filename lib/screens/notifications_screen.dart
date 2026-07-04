@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/notification_model.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/notification_provider.dart';
 import '../utils/app_localization.dart';
 import '../utils/app_icons.dart';
@@ -481,6 +482,12 @@ class _NotificationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cfg = context.watch<AppConfigProvider>();
+    final pad = cfg.notifCardPadding;
+    final unreadBg = isDark
+        ? const Color(0xFF1E3A5F).withOpacity(0.5)
+        : cfg.notifUnreadColor;
+    final accentColor = cfg.notifAccentColor;
 
     return Dismissible(
       key: Key('notification_${notification.id}'),
@@ -499,19 +506,15 @@ class _NotificationTile extends StatelessWidget {
         onTap: onTap,
         child: Container(
           margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(14),
+          padding: EdgeInsets.all(pad),
           decoration: BoxDecoration(
             color: notification.isRead
                 ? Theme.of(context).cardColor
-                : (isDark
-                    ? const Color(0xFF1E3A5F).withOpacity(0.5)
-                    : const Color(0xFFE0F2FE)),
+                : unreadBg,
             borderRadius: BorderRadius.circular(12),
             border: notification.isRead
                 ? Border.all(
-                    color: isDark
-                        ? Colors.grey.shade800
-                        : Colors.grey.shade200,
+                    color: isDark ? Colors.grey.shade800 : Colors.grey.shade200,
                     width: 1,
                   )
                 : null,
@@ -519,7 +522,7 @@ class _NotificationTile extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildIcon(notification.type),
+              _buildIcon(notification.type, cfg),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -531,7 +534,7 @@ class _NotificationTile extends StatelessWidget {
                           child: Text(
                             notification.title,
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: cfg.notifTitleSize,
                               fontWeight: notification.isRead
                                   ? FontWeight.w500
                                   : FontWeight.bold,
@@ -546,8 +549,8 @@ class _NotificationTile extends StatelessWidget {
                             width: 8,
                             height: 8,
                             margin: const EdgeInsets.only(right: 4),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF3B82F6),
+                            decoration: BoxDecoration(
+                              color: accentColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -557,10 +560,8 @@ class _NotificationTile extends StatelessWidget {
                     Text(
                       notification.body,
                       style: TextStyle(
-                        fontSize: 13,
-                        color: isDark
-                            ? Colors.grey.shade400
-                            : Colors.grey.shade600,
+                        fontSize: cfg.notifBodySize,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                         height: 1.3,
                       ),
                       maxLines: 2,
@@ -571,9 +572,7 @@ class _NotificationTile extends StatelessWidget {
                       notification.timeAgo,
                       style: TextStyle(
                         fontSize: 11,
-                        color: isDark
-                            ? Colors.grey.shade500
-                            : Colors.grey.shade500,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                   ],
@@ -586,49 +585,57 @@ class _NotificationTile extends StatelessWidget {
     );
   }
 
-  Widget _buildIcon(NotificationType type) {
+  Widget _buildIcon(NotificationType type, AppConfigProvider cfg) {
+    final logoUrl = cfg.notifLogoUrl;
+    final iconSize = cfg.notifIconSize;
+
+    // Custom logo overrides type icons
+    if (logoUrl.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(10),
+        child: Image.network(
+          logoUrl,
+          width: iconSize,
+          height: iconSize,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _typeIcon(type, iconSize, cfg.notifAccentColor),
+        ),
+      );
+    }
+
+    return _typeIcon(type, iconSize, null);
+  }
+
+  Widget _typeIcon(NotificationType type, double size, Color? accentOverride) {
     IconData icon;
     Color color;
 
     switch (type) {
       case NotificationType.review:
-        icon = Icons.star_rounded;
-        color = const Color(0xFFFBBF24);
-        break;
+        icon = Icons.star_rounded;         color = const Color(0xFFFBBF24); break;
       case NotificationType.favorite:
-        icon = Icons.favorite_rounded;
-        color = const Color(0xFFEF4444);
-        break;
+        icon = Icons.favorite_rounded;     color = const Color(0xFFEF4444); break;
       case NotificationType.serviceUpdate:
-        icon = Icons.update_rounded;
-        color = const Color(0xFF10B981);
-        break;
+        icon = Icons.update_rounded;       color = const Color(0xFF10B981); break;
       case NotificationType.promotion:
-        icon = Icons.local_offer_rounded;
-        color = const Color(0xFF8B5CF6);
-        break;
+        icon = Icons.local_offer_rounded;  color = const Color(0xFF8B5CF6); break;
       case NotificationType.ads:
-        icon = Icons.campaign_rounded;
-        color = const Color(0xFFEC4899);
-        break;
+        icon = Icons.campaign_rounded;     color = const Color(0xFFEC4899); break;
       case NotificationType.system:
-        icon = Icons.info_rounded;
-        color = const Color(0xFF6B7280);
-        break;
+        icon = Icons.info_rounded;         color = const Color(0xFF6B7280); break;
       case NotificationType.verification:
-        icon = Icons.verified_rounded;
-        color = const Color(0xFF3B82F6);
-        break;
+        icon = Icons.verified_rounded;     color = const Color(0xFF3B82F6); break;
     }
 
+    final c = accentOverride ?? color;
     return Container(
-      width: 40,
-      height: 40,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: c.withOpacity(0.15),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Icon(icon, color: color, size: 20),
+      child: Icon(icon, color: c, size: size * 0.5),
     );
   }
 }

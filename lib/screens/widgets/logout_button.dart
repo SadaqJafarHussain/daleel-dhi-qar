@@ -26,14 +26,10 @@ class LogoutButton extends StatelessWidget {
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          color: isDarkMode
-              ? const Color(0xFFE11D48)  // Lighter rose for dark mode
-              : const Color(0xFFB91C4C),  // Original rose for light mode
+          color: Theme.of(context).primaryColor,
           boxShadow: [
             BoxShadow(
-              color: (isDarkMode
-                  ? const Color(0xFFE11D48)
-                  : const Color(0xFFEF4444)).withOpacity(0.3),
+              color: Theme.of(context).primaryColor.withOpacity(0.3),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),

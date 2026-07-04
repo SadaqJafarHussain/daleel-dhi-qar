@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/app_config_provider.dart';
 import '../providers/auth_provider.dart';
 import '../models/user_model.dart';
 import '../utils/app_localization.dart';
@@ -65,7 +66,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     'occupation_student',
     'occupation_government',
     'occupation_private',
-    'occupation_business_owner',
+    'occupation_freelance',
     'occupation_doctor',
     'occupation_engineer',
     'occupation_teacher',
@@ -246,12 +247,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final occupationToSave = _selectedOccupation ?? _originalOccupation;
     final interestsToSave = _selectedInterests.isNotEmpty ? _selectedInterests : _originalInterests;
 
-    final updatedUser = UserModel(
-      id: currentUser.id,
+    final updatedUser = currentUser.copyWith(
       name: _nameController.text.trim(),
       phone: _phoneController.text.trim(),
-      role: currentUser.role,
-      active: currentUser.active,
       gender: _selectedGender,
       birthDate: _selectedBirthDate,
       city: cityToSave,
@@ -317,6 +315,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context);
+    final cfg = context.watch<AppConfigProvider>();
     final size = MediaQuery.of(context).size;
     final w = size.width;
     final h = size.height;
@@ -460,143 +459,154 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             SizedBox(height: h * 0.02),
 
             // Gender Selection
-            _buildSectionTitle(loc.t('gender'), Icons.wc_outlined),
-            SizedBox(height: h * 0.01),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildGenderOption(
-                    title: loc.t('male'),
-                    icon: Icons.male,
-                    isSelected: _selectedGender == Gender.male,
-                    onTap: () {
-                      setState(() {
-                        _selectedGender = Gender.male;
-                        _hasChanges = true;
-                      });
-                    },
+            if (cfg.isFieldVisible('gender')) ...[
+              _buildSectionTitle(loc.t('gender'), Icons.wc_outlined),
+              SizedBox(height: h * 0.01),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildGenderOption(
+                      title: loc.t('male'),
+                      icon: Icons.male,
+                      isSelected: _selectedGender == Gender.male,
+                      onTap: () {
+                        setState(() {
+                          _selectedGender = Gender.male;
+                          _hasChanges = true;
+                        });
+                      },
+                    ),
                   ),
-                ),
-                SizedBox(width: w * 0.03),
-                Expanded(
-                  child: _buildGenderOption(
-                    title: loc.t('female'),
-                    icon: Icons.female,
-                    isSelected: _selectedGender == Gender.female,
-                    onTap: () {
-                      setState(() {
-                        _selectedGender = Gender.female;
-                        _hasChanges = true;
-                      });
-                    },
+                  SizedBox(width: w * 0.03),
+                  Expanded(
+                    child: _buildGenderOption(
+                      title: loc.t('female'),
+                      icon: Icons.female,
+                      isSelected: _selectedGender == Gender.female,
+                      onTap: () {
+                        setState(() {
+                          _selectedGender = Gender.female;
+                          _hasChanges = true;
+                        });
+                      },
+                    ),
                   ),
-                ),
-              ],
-            ),
-            SizedBox(height: h * 0.02),
+                ],
+              ),
+              SizedBox(height: h * 0.02),
+            ],
 
             // Birth Date
-            _buildSectionTitle(loc.t('birth_date'), Icons.cake_outlined),
-            SizedBox(height: h * 0.01),
-            InkWell(
-              onTap: _selectBirthDate,
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: EdgeInsets.all(w * 0.04),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).cardColor,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+            if (cfg.isFieldVisible('birth_date')) ...[
+              _buildSectionTitle(loc.t('birth_date'), Icons.cake_outlined),
+              SizedBox(height: h * 0.01),
+              InkWell(
+                onTap: _selectBirthDate,
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: EdgeInsets.all(w * 0.04),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_outlined,
-                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
-                    ),
-                    SizedBox(width: w * 0.03),
-                    Text(
-                      _selectedBirthDate != null
-                          ? '${_selectedBirthDate!.day}/${_selectedBirthDate!.month}/${_selectedBirthDate!.year}'
-                          : loc.t('select_birth_date'),
-                      style: TextStyle(
-                        color: _selectedBirthDate != null
-                            ? Theme.of(context).textTheme.bodyLarge?.color
-                            : (isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_outlined,
+                        color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                       ),
-                    ),
-                  ],
+                      SizedBox(width: w * 0.03),
+                      Text(
+                        _selectedBirthDate != null
+                            ? '${_selectedBirthDate!.day}/${_selectedBirthDate!.month}/${_selectedBirthDate!.year}'
+                            : loc.t('select_birth_date'),
+                        style: TextStyle(
+                          color: _selectedBirthDate != null
+                              ? Theme.of(context).textTheme.bodyLarge?.color
+                              : (isDark ? Colors.grey.shade500 : Colors.grey.shade600),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            SizedBox(height: h * 0.02),
+              SizedBox(height: h * 0.02),
+            ],
 
             // City Selection
-            _buildSectionTitle(loc.t('city'), Icons.location_city_outlined),
-            SizedBox(height: h * 0.01),
-            _buildDropdown(
-              value: _selectedCity,
-              hint: loc.t('select_city'),
-              items: _iraqiCities,
-              onChanged: (value) {
-                setState(() {
-                  _selectedCity = value;
-                  _hasChanges = true;
-                });
-              },
-            ),
-            SizedBox(height: h * 0.02),
+            if (cfg.isFieldVisible('city')) ...[
+              _buildSectionTitle(loc.t('city'), Icons.location_city_outlined),
+              SizedBox(height: h * 0.01),
+              _buildDropdown(
+                value: _selectedCity,
+                hint: loc.t('select_city'),
+                items: _iraqiCities,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCity = value;
+                    _hasChanges = true;
+                  });
+                },
+              ),
+              SizedBox(height: h * 0.02),
+            ],
 
             // Occupation Selection
-            _buildSectionTitle(loc.t('occupation'), Icons.work_outline),
-            SizedBox(height: h * 0.01),
-            _buildDropdown(
-              value: _selectedOccupation,
-              hint: loc.t('select_occupation'),
-              items: _occupations,
-              onChanged: (value) {
-                setState(() {
-                  _selectedOccupation = value;
-                  _hasChanges = true;
-                });
-              },
-            ),
-            SizedBox(height: h * 0.02),
+            if (cfg.isFieldVisible('occupation')) ...[
+              _buildSectionTitle(loc.t('occupation'), Icons.work_outline),
+              SizedBox(height: h * 0.01),
+              _buildDropdown(
+                value: _selectedOccupation,
+                hint: loc.t('select_occupation'),
+                items: _occupations,
+                onChanged: (value) {
+                  setState(() {
+                    _selectedOccupation = value;
+                    _hasChanges = true;
+                  });
+                },
+              ),
+              SizedBox(height: h * 0.02),
+            ],
 
             // Interests
-            _buildSectionTitle(loc.t('interests'), Icons.interests_outlined),
-            SizedBox(height: h * 0.01),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _interests.map((interest) {
-                final isSelected = _selectedInterests.contains(interest);
-                return FilterChip(
-                  label: Text(loc.t(interest)), // Translate the key
-                  selected: isSelected,
-                  onSelected: (selected) {
-                    setState(() {
-                      if (selected) {
-                        _selectedInterests.add(interest);
-                      } else {
-                        _selectedInterests.remove(interest);
-                      }
-                      _hasChanges = true;
-                    });
-                  },
-                  selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
-                  checkmarkColor: Theme.of(context).primaryColor,
-                  labelStyle: TextStyle(
-                    color: isSelected
-                        ? Theme.of(context).primaryColor
-                        : Theme.of(context).textTheme.bodyMedium?.color,
-                  ),
-                );
-              }).toList(),
-            ),
-            SizedBox(height: h * 0.04),
+            if (cfg.isFieldVisible('interests')) ...[
+              _buildSectionTitle(loc.t('interests'), Icons.interests_outlined),
+              SizedBox(height: h * 0.01),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _interests.map((interest) {
+                  final isSelected = _selectedInterests.contains(interest);
+                  return FilterChip(
+                    label: Text(loc.t(interest)),
+                    selected: isSelected,
+                    onSelected: (selected) {
+                      setState(() {
+                        if (selected) {
+                          _selectedInterests.add(interest);
+                        } else {
+                          _selectedInterests.remove(interest);
+                        }
+                        _hasChanges = true;
+                      });
+                    },
+                    selectedColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                    checkmarkColor: Theme.of(context).primaryColor,
+                    labelStyle: TextStyle(
+                      color: isSelected
+                          ? Theme.of(context).primaryColor
+                          : Theme.of(context).textTheme.bodyMedium?.color,
+                    ),
+                  );
+                }).toList(),
+              ),
+              SizedBox(height: h * 0.02),
+            ],
+            SizedBox(height: h * 0.02),
 
             // Save Button
             SizedBox(

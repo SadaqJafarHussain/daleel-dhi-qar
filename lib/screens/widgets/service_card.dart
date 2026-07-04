@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
+import 'package:tour_guid/providers/category_provider.dart';
+import 'package:tour_guid/providers/language_provider.dart';
 import 'package:tour_guid/screens/service_details_screen.dart';
 import 'package:tour_guid/utils/app_localization.dart';
 import 'package:tour_guid/utils/app_icons.dart';
@@ -139,6 +141,9 @@ class _ServiceCardState extends State<ServiceCard>
     final loc = AppLocalizations.of(context);
     final cardWidth = widget.width ?? 280.0;
     final cardHeight = widget.height ?? 220.0;
+    final isAr = context.read<LanguageProvider>().isArabic;
+    final catProvider = context.read<CategoryProvider>();
+    final displayCatName = catProvider.getLocalizedCategoryNameById(widget.service.catId, isAr) ?? widget.service.catName;
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
@@ -270,66 +275,59 @@ class _ServiceCardState extends State<ServiceCard>
                           ],
                         ),
 
-                        const SizedBox(height: 3),
 
                         // Rating row
                         if (widget.service.averageRating != null && widget.service.averageRating! > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.star_rounded,
-                                  size: 14,
-                                  color: Color(0xFFFBBF24),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star_rounded,
+                                size: 14,
+                                color: Color(0xFFFBBF24),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                widget.service.averageRating!.toStringAsFixed(1),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: isDark ? Colors.white : Colors.grey.shade800,
                                 ),
-                                const SizedBox(width: 3),
+                              ),
+                              if (widget.service.totalReviews != null && widget.service.totalReviews! > 0) ...[
                                 Text(
-                                  widget.service.averageRating!.toStringAsFixed(1),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: isDark ? Colors.white : Colors.grey.shade800,
-                                  ),
-                                ),
-                                if (widget.service.totalReviews != null && widget.service.totalReviews! > 0) ...[
-                                  Text(
-                                    ' (${widget.service.totalReviews})',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-
-                        // Working hours display (below rating)
-                        if (widget.service.workingHoursDisplay.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.access_time_rounded,
-                                  size: 12,
-                                  color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  widget.service.workingHoursDisplay,
+                                  ' (${widget.service.totalReviews})',
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
                                   ),
                                 ),
                               ],
-                            ),
+                            ],
+                          ),
+
+                        // Working hours display (below rating)
+                        if (widget.service.workingHoursDisplay.isNotEmpty)
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.access_time_rounded,
+                                size: 12,
+                                color: isDark ? Colors.grey.shade500 : Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                widget.service.workingHoursDisplay,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isDark ? Colors.grey.shade500 : Colors.grey.shade600,
+                                ),
+                              ),
+                            ],
                           ),
 
                         // Category with icon
-                        if (widget.service.catName.isNotEmpty)
+                        if (displayCatName.isNotEmpty)
                           Row(
                             children: [
                               AppIcon.small(
@@ -339,7 +337,7 @@ class _ServiceCardState extends State<ServiceCard>
                               const SizedBox(width: 4),
                               Expanded(
                                 child: Text(
-                                  widget.service.catName,
+                                  displayCatName,
                                   style: TextStyle(
                                     fontSize: 11,
                                     color: isDark

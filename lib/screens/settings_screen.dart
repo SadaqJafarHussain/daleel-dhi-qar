@@ -6,6 +6,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
 import 'package:tour_guid/providers/theme_provider.dart';
 import 'package:tour_guid/providers/notification_provider.dart';
+import 'package:tour_guid/providers/app_config_provider.dart';
+import 'package:tour_guid/screens/notification_settings_screen.dart';
 import 'package:tour_guid/screens/widgets/language_selector.dart';
 import 'package:tour_guid/screens/widgets/logout_button.dart';
 import 'package:tour_guid/screens/widgets/logout_dialog.dart';
@@ -23,6 +25,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isTogglingNotifications = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(() {
+      if (mounted) {
+        Provider.of<AppConfigProvider>(context, listen: false).fetchConfig();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,6 +87,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
 
+              // Notification Settings (only show if logged in)
+              if (authProvider.user != null)
+                ProfileMenuItem(
+                  icon: Icons.tune_outlined,
+                  title: loc.t('notification_settings'),
+                  iconColor: const Color(0xFF3B82F6),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationSettingsScreen(),
+                    ),
+                  ),
+                  width: w,
+                  height: h,
+                ),
+
               // Language Selector (NEW)
               LanguageSelector(width: w, height: h),
 
@@ -106,7 +134,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.headset_mic_outlined,
                 title: loc.t('contact_us'),
                 iconColor: const Color(0xFF22C55E),
-                onTap: () => _showContactUsSheet(context, loc),
+                onTap: () => _showContactUsSheet(context, loc,
+                  Provider.of<AppConfigProvider>(context, listen: false)),
                 width: w,
                 height: h,
               ),
@@ -285,7 +314,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Show Contact Us bottom sheet with multiple contact options
-  void _showContactUsSheet(BuildContext context, AppLocalizations loc) {
+  void _showContactUsSheet(BuildContext context, AppLocalizations loc, AppConfigProvider cfg) {
+    final options = <Map<String, dynamic>>[];
+
+    if (cfg.whatsapp.isNotEmpty) {
+      options.add({
+        'icon': Icons.chat,
+        'title': 'WhatsApp',
+        'subtitle': cfg.whatsapp,
+        'color': const Color(0xFF25D366),
+        'url': 'https://wa.me/${cfg.whatsapp}',
+      });
+    }
+    if (cfg.phone.isNotEmpty) {
+      options.add({
+        'icon': Icons.phone_outlined,
+        'title': loc.t('phone'),
+        'subtitle': cfg.phone,
+        'color': const Color(0xFF22C55E),
+        'url': 'tel:${cfg.phone}',
+      });
+    }
+    if (cfg.email.isNotEmpty) {
+      options.add({
+        'icon': Icons.email_outlined,
+        'title': loc.t('email'),
+        'subtitle': cfg.email,
+        'color': const Color(0xFF3B82F6),
+        'url': 'mailto:${cfg.email}',
+      });
+    }
+    if (cfg.instagram.isNotEmpty) {
+      options.add({
+        'icon': Icons.camera_alt_outlined,
+        'title': 'Instagram',
+        'subtitle': cfg.instagram,
+        'color': const Color(0xFFE1306C),
+        'url': cfg.instagram,
+      });
+    }
+    if (cfg.facebook.isNotEmpty) {
+      options.add({
+        'icon': Icons.facebook,
+        'title': 'Facebook',
+        'subtitle': cfg.facebook,
+        'color': const Color(0xFF1877F2),
+        'url': cfg.facebook,
+      });
+    }
+    if (cfg.website.isNotEmpty) {
+      options.add({
+        'icon': Icons.language,
+        'title': loc.t('website'),
+        'subtitle': cfg.website,
+        'color': const Color(0xFF6366F1),
+        'url': cfg.website,
+      });
+    }
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -298,7 +384,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle bar
               Container(
                 margin: const EdgeInsets.only(top: 12),
                 width: 40,
@@ -314,50 +399,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     Text(
                       loc.t('contact_us'),
-                      style: TextStyle(
-                        fontSize: AppTextSizes.h3,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontSize: AppTextSizes.h3, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       loc.t('contact_us_desc'),
-                      style: TextStyle(
-                        fontSize: AppTextSizes.bodySmall,
-                        color: Colors.grey,
-                      ),
+                      style: TextStyle(fontSize: AppTextSizes.bodySmall, color: Colors.grey),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
-                    // WhatsApp
-                    _buildContactOption(
-                      context: context,
-                      icon: Icons.chat,
-                      title: 'WhatsApp',
-                      subtitle: '+964 783 156 3335',
-                      color: const Color(0xFF25D366),
-                      onTap: () => _launchUrl('https://wa.me/9647831563335'),
-                    ),
-                    const SizedBox(height: 12),
-                    // Email
-                    _buildContactOption(
-                      context: context,
-                      icon: Icons.email_outlined,
-                      title: loc.t('email'),
-                      subtitle: 'support@daleeldhiqar.com',
-                      color: const Color(0xFF3B82F6),
-                      onTap: () => _launchUrl('mailto:support@daleeldhiqar.com'),
-                    ),
-                    const SizedBox(height: 12),
-                    // Phone
-                    _buildContactOption(
-                      context: context,
-                      icon: Icons.phone_outlined,
-                      title: loc.t('phone'),
-                      subtitle: '+964 783 156 3335',
-                      color: const Color(0xFF22C55E),
-                      onTap: () => _launchUrl('tel:+9647831563335'),
-                    ),
+                    if (options.isEmpty)
+                      Text(loc.t('no_contact_info'),
+                        style: TextStyle(color: Colors.grey, fontSize: AppTextSizes.bodySmall),
+                        textAlign: TextAlign.center,
+                      )
+                    else
+                      ...options.asMap().entries.map((e) => Padding(
+                        padding: EdgeInsets.only(bottom: e.key < options.length - 1 ? 12 : 0),
+                        child: _buildContactOption(
+                          context: context,
+                          icon: e.value['icon'] as IconData,
+                          title: e.value['title'] as String,
+                          subtitle: e.value['subtitle'] as String,
+                          color: e.value['color'] as Color,
+                          onTap: () => _launchUrl(e.value['url'] as String),
+                        ),
+                      )),
                     const SizedBox(height: 20),
                   ],
                 ),
@@ -468,6 +535,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _showAboutDialog(BuildContext context, AppLocalizations loc) async {
     final packageInfo = await PackageInfo.fromPlatform();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = Theme.of(context).primaryColor;
+    final appConfig = Provider.of<AppConfigProvider>(context, listen: false);
+    final isAr = Localizations.localeOf(context).languageCode == 'ar';
 
     if (!mounted) return;
 
@@ -483,13 +553,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFB91C4C).withOpacity(0.1),
+                color: primaryColor.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.explore,
                 size: 48,
-                color: Color(0xFFB91C4C),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 16),
@@ -520,7 +590,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 16),
             // Description
             Text(
-              loc.t('app_description'),
+              appConfig.aboutDescription(isAr),
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: AppTextSizes.bodySmall,
@@ -546,7 +616,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               style: TextStyle(
                 fontSize: AppTextSizes.bodyMedium,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFB91C4C),
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 16),
@@ -575,6 +645,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).t('could_not_open_link')),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
     }
   }
 }
@@ -605,14 +683,15 @@ class _LegalPageScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Theme.of(context).dividerColor),
               ),
               child: Text(
                 '${AppLocalizations.of(context).t('last_updated')}: ${DateTime.now().year}-01-01',
                 style: TextStyle(
                   fontSize: AppTextSizes.labelSmall,
-                  color: Colors.grey.shade600,
+                  color: Theme.of(context).textTheme.bodySmall?.color,
                 ),
               ),
             ),

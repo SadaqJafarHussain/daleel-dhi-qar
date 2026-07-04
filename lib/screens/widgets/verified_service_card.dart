@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
+import 'package:tour_guid/providers/category_provider.dart';
+import 'package:tour_guid/providers/language_provider.dart';
 import 'package:tour_guid/screens/service_details_screen.dart';
 import 'package:tour_guid/utils/app_localization.dart';
 import 'package:tour_guid/utils/app_icons.dart';
@@ -85,6 +87,9 @@ class _VerifiedServiceCardState extends State<VerifiedServiceCard>
     final loc = AppLocalizations.of(context);
     const cardWidth = 320.0;
     const cardHeight = 270.0;
+    final isAr = context.read<LanguageProvider>().isArabic;
+    final catProvider = context.read<CategoryProvider>();
+    final displayCatName = catProvider.getLocalizedCategoryNameById(widget.service.catId, isAr) ?? widget.service.catName;
 
     return AnimatedBuilder(
       animation: _scaleAnimation,
@@ -293,7 +298,7 @@ class _VerifiedServiceCardState extends State<VerifiedServiceCard>
                                     ),
                                   const SizedBox(width: 8),
                                   // Category badge
-                                  if (widget.service.catName.isNotEmpty)
+                                  if (displayCatName.isNotEmpty)
                                     Expanded(
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(
@@ -307,7 +312,7 @@ class _VerifiedServiceCardState extends State<VerifiedServiceCard>
                                           borderRadius: BorderRadius.circular(8),
                                         ),
                                         child: Text(
-                                          widget.service.catName,
+                                          displayCatName,
                                           style: TextStyle(
                                             fontSize: 11,
                                             color: isDark

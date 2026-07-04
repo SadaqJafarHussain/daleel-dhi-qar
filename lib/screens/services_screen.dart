@@ -5,6 +5,7 @@ import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:tour_guid/providers/auth_provider.dart';
 import 'package:tour_guid/providers/category_provider.dart';
+import 'package:tour_guid/providers/language_provider.dart';
 import 'package:tour_guid/screens/widgets/favorite_button.dart';
 import 'package:tour_guid/screens/service_details_screen.dart';
 import 'package:tour_guid/utils/app_icons.dart';
@@ -877,6 +878,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           if (categories.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
+          final isAr = context.read<LanguageProvider>().isArabic;
 
           return SliverToBoxAdapter(
             child: Container(
@@ -899,7 +901,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       return Padding(
                         padding: EdgeInsets.only(right: w * 0.02),
                         child: _buildFilterChip(
-                          label: category.name,
+                          label: category.localizedName(isAr),
                           isSelected: _selectedFilterId == category.id,
                           onTap: () => _onFilterSelected(category.id),
                         ),
@@ -924,6 +926,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
           if (subcategories.isEmpty) {
             return const SliverToBoxAdapter(child: SizedBox.shrink());
           }
+          final isAr = context.read<LanguageProvider>().isArabic;
 
           return SliverToBoxAdapter(
             child: Container(
@@ -946,7 +949,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       return Padding(
                         padding: EdgeInsets.only(right: w * 0.02),
                         child: _buildFilterChip(
-                          label: subcategory.name,
+                          label: subcategory.localizedName(isAr),
                           isSelected: _selectedFilterId == subcategory.id,
                           onTap: () => _onFilterSelected(subcategory.id),
                         ),
@@ -1006,6 +1009,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
   Widget _buildServiceCard(Service service, double w, double h, bool isDarkMode) {
     final randomHeights = [200.0, 240.0, 280.0, 220.0, 260.0, 200.0];
     final cardHeight = randomHeights[service.id % randomHeights.length];
+    final isAr = context.read<LanguageProvider>().isArabic;
+    final subcatProvider = context.read<SubcategoryProvider>();
+    final displaySubcatName = subcatProvider.getLocalizedSubcategoryNameById(service.subcatId, isAr) ?? service.subcatName;
 
     return GestureDetector(
       onTap: () {
@@ -1120,7 +1126,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                             ),
                           ),
                           child: Text(
-                            service.subcatName,
+                            displaySubcatName,
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,

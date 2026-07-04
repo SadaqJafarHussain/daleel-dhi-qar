@@ -62,7 +62,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } else if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authProvider.errorMessage ?? locale.t('service_saved')),
+          content: Text(authProvider.errorMessage ?? locale.t('registration_failed')),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(
@@ -112,7 +112,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   SizedBox(height: h * 0.01),
 
                   Text(
-                    locale.t('add_service_subtitle'),
+                    locale.t('login_message'),
                     style: TextStyle(
                       fontSize: w * 0.035,
                       color:  Theme.of(context).textTheme.displayMedium!.color
@@ -124,7 +124,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   // Name Field
                   _buildTextField(
                     label: locale.t('name'),
-                    hint: locale.t('service_name_hint'),
+                    hint: locale.t('name'),
                     controller: _nameController,
                     icon: Icons.person_outline,
                     validator: (value) {
@@ -240,7 +240,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: ElevatedButton(
                           onPressed: auth.isLoading ? null : _handleRegister,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A2C),
+                            backgroundColor: Theme.of(context).colorScheme.secondary,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),

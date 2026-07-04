@@ -4,6 +4,9 @@ import '../models/user_model.dart' as app;
 import 'cache_manager.dart';
 import 'supabase_service.dart';
 
+/// Result of submitting a password reset request to support
+enum ResetRequestResult { success, phoneNotFound, alreadyPending, error }
+
 /// Supabase authentication service
 class SupabaseAuthService {
   // Singleton instance
@@ -157,9 +160,17 @@ class SupabaseAuthService {
         return AuthResult.failure('Registration failed');
       }
 
-      // Profile is created automatically by database trigger (handle_new_user)
-      // Wait a moment for the trigger to complete
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Create profile row directly (more reliable than a DB trigger)
+      try {
+        await _supabase.client.from('profiles').upsert({
+          'id': response.user!.id,
+          'name': name,
+          'phone': phone,
+        }, onConflict: 'id');
+      } catch (e) {
+        debugPrint('SupabaseAuthService: Profile creation warning: $e');
+        // Non-fatal — profile can be created/updated later
+      }
 
       debugPrint('SupabaseAuthService: User registered: ${response.user!.id}');
 
@@ -399,47 +410,76 @@ class SupabaseAuthService {
   // PASSWORD MANAGEMENT
   // ========================================
 
-  /// Update password
-  Future<bool> updatePassword({
+  /// Update password.
+  /// Returns null on success, or an error key string on failure.
+  /// 'wrong_current_password' means the current password was incorrect.
+  Future<String?> updatePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
     try {
-      // Re-authenticate first
       final user = currentUser;
-      if (user?.email == null) return false;
+      if (user?.email == null) return 'not_logged_in';
 
+      // Re-authenticate to verify the current password is correct
       await _supabase.client.auth.signInWithPassword(
         email: user!.email!,
         password: currentPassword,
       );
 
-      // Update password
+      // Current password verified — now update to the new one
       await _supabase.client.auth.updateUser(
         UserAttributes(password: newPassword),
       );
 
       debugPrint('SupabaseAuthService: Password updated');
-      return true;
+      return null;
     } on AuthException catch (e) {
       debugPrint('SupabaseAuthService: Password update error: ${e.message}');
-      return false;
+      final msg = e.message.toLowerCase();
+      if (msg.contains('invalid') || msg.contains('credentials')) {
+        return 'wrong_current_password';
+      }
+      return 'password_change_failed';
     } catch (e) {
       debugPrint('SupabaseAuthService: Password update error: $e');
-      return false;
+      return 'network_error';
     }
   }
 
-  /// Request password reset
-  Future<bool> resetPassword(String phone) async {
+  /// Submit a password reset request to be handled by support.
+  /// Returns a [ResetRequestResult] describing the outcome.
+  Future<ResetRequestResult> submitPasswordResetRequest(String phone) async {
     try {
-      final email = _phoneToEmail(phone);
-      await _supabase.client.auth.resetPasswordForEmail(email);
-      debugPrint('SupabaseAuthService: Password reset email sent');
-      return true;
+      // Look up the user by phone number
+      final profile = await _supabase.client
+          .from('profiles')
+          .select('id, name')
+          .eq('phone', phone)
+          .maybeSingle();
+
+      if (profile == null) return ResetRequestResult.phoneNotFound;
+
+      final userId = profile['id'] as String;
+      final name   = (profile['name'] as String?) ?? '';
+
+      // Insert — duplicate pending is rejected by the unique partial index
+      await _supabase.client.from('password_reset_requests').insert({
+        'user_id': userId,
+        'phone':   phone,
+        'name':    name,
+      });
+
+      debugPrint('SupabaseAuthService: Reset request submitted for $phone');
+      return ResetRequestResult.success;
     } catch (e) {
-      debugPrint('SupabaseAuthService: Reset password error: $e');
-      return false;
+      debugPrint('SupabaseAuthService: Reset request error: $e');
+      // PostgreSQL unique violation = 23505
+      final msg = e.toString();
+      if (msg.contains('23505') || msg.contains('duplicate') || msg.contains('unique')) {
+        return ResetRequestResult.alreadyPending;
+      }
+      return ResetRequestResult.error;
     }
   }
 

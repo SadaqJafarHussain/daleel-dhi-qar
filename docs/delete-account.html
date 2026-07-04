@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>حذف الحساب - دليل ذي قار | Delete Account - Daleel Dhi Qar</title>
+  <style>
+    :root {
+      --red: #dc2626;
+      --red-light: #fef2f2;
+      --primary: #1a56db;
+      --primary-dark: #1e429f;
+      --bg: #f9fafb;
+      --card: #ffffff;
+      --text: #111827;
+      --border: #e5e7eb;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', 'Cairo', Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; }
+
+    header {
+      background: linear-gradient(135deg, var(--red) 0%, #b91c1c 100%);
+      color: #fff;
+      padding: 48px 24px 36px;
+      text-align: center;
+    }
+    header h1 { font-size: 1.9rem; font-weight: 800; margin-bottom: 6px; }
+    header p  { opacity: .85; }
+
+    .lang-tabs {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 18px;
+      background: #b91c1c;
+    }
+    .lang-tabs button {
+      padding: 8px 28px;
+      border: 2px solid #fff;
+      border-radius: 9999px;
+      background: transparent;
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .lang-tabs button.active { background: #fff; color: #b91c1c; }
+
+    .container { max-width: 780px; margin: 32px auto; padding: 0 20px 60px; }
+
+    .content-section { display: none; }
+    .content-section.active { display: block; }
+
+    .warn-box {
+      background: var(--red-light);
+      border: 1px solid #fca5a5;
+      border-radius: 12px;
+      padding: 18px 22px;
+      margin-bottom: 24px;
+      color: #991b1b;
+      font-size: .95rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.04);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card p { color: #374151; margin-bottom: 10px; }
+    .card p:last-child { margin-bottom: 0; }
+
+    ol.steps { padding-right: 22px; margin-top: 10px; }
+    ol.steps li { margin-bottom: 10px; color: #374151; }
+    ol.steps li strong { color: var(--text); }
+
+    .data-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+      list-style: none;
+    }
+    .data-list li {
+      background: var(--red-light);
+      border: 1px solid #fca5a5;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: .9rem;
+      color: #991b1b;
+    }
+
+    .note {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-size: .9rem;
+      color: #92400e;
+      margin-top: 14px;
+    }
+
+    #en { direction: ltr; text-align: left; }
+    #en ol.steps { padding-left: 22px; padding-right: 0; }
+
+    footer {
+      text-align: center;
+      padding: 24px;
+      font-size: .85rem;
+      color: #6b7280;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 600px) {
+      .card { padding: 20px 18px; }
+      header h1 { font-size: 1.4rem; }
+      .data-list { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗑️ حذف الحساب | Delete Account</h1>
+  <p>دليل ذي قار &nbsp;·&nbsp; Daleel Dhi Qar</p>
+</header>
+
+<div class="lang-tabs">
+  <button class="active" onclick="switchLang('ar', this)">العربية</button>
+  <button onclick="switchLang('en', this)">English</button>
+</div>
+
+<!-- ARABIC -->
+<div id="ar" class="content-section active">
+  <div class="container">
+
+    <div class="warn-box">
+      ⚠️ <strong>تحذير:</strong> حذف الحساب إجراء نهائي ولا يمكن التراجع عنه. سيتم حذف جميع بياناتك بشكل دائم.
+    </div>
+
+    <div class="card">
+      <h2>📱 الطريقة الأولى: من داخل التطبيق (مُوصى به)</h2>
+      <ol class="steps">
+        <li>افتح تطبيق <strong>دليل ذي قار</strong></li>
+        <li>انتقل إلى تبويب <strong>الإعدادات</strong> (أيقونة الترس في أسفل الشاشة)</li>
+        <li>مرر للأسفل حتى تجد زر <strong>"حذف الحساب"</strong> باللون الأحمر</li>
+        <li>اضغط على الزر وأكد رغبتك في الحذف</li>
+        <li>سيتم حذف حسابك وجميع بياناتك فوراً وتسجيل خروجك تلقائياً</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>📧 الطريقة الثانية: التواصل معنا</h2>
+      <p>إذا لم تتمكن من الوصول إلى التطبيق، يمكنك طلب حذف حسابك عبر قسم <strong>الإعدادات ← تواصل معنا</strong> داخل التطبيق، أو عبر وسائل التواصل المذكورة في الإعدادات.</p>
+      <p>يُرجى ذكر <strong>البريد الإلكتروني المرتبط بحسابك</strong> في طلب الحذف. سنعالج طلبك خلال <strong>30 يوماً</strong>.</p>
+    </div>
+
+    <div class="card">
+      <h2>🗂️ البيانات التي سيتم حذفها</h2>
+      <p>عند حذف حسابك، يتم حذف ما يلي بشكل نهائي:</p>
+      <ul class="data-list">
+        <li>🙍 بيانات الملف الشخصي</li>
+        <li>📧 البريد الإلكتروني</li>
+        <li>📱 رقم الهاتف</li>
+        <li>🖼️ صورة الملف الشخصي</li>
+        <li>⭐ قائمة المفضلة</li>
+        <li>🔔 رمز الإشعارات (FCM)</li>
+        <li>📝 التقييمات والمراجعات</li>
+        <li>🏢 الخدمات المنشورة</li>
+      </ul>
+      <div class="note">
+        📌 قد تبقى التقييمات والمراجعات بصورة مجهولة الهوية في النظام لأغراض إحصائية.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>↩️ إمكانية التراجع</h2>
+      <p>
+        حذف الحساب إجراء <strong>نهائي وغير قابل للتراجع</strong>. لا يمكن استعادة بياناتك بعد الحذف.
+        إذا كنت تريد التوقف مؤقتاً عن استخدام التطبيق، يمكنك تسجيل الخروج فقط دون حذف الحساب.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ENGLISH -->
+<div id="en" class="content-section" lang="en">
+  <div class="container">
+
+    <div class="warn-box">
+      ⚠️ <strong>Warning:</strong> Account deletion is permanent and cannot be undone. All your data will be permanently deleted.
+    </div>
+
+    <div class="card">
+      <h2>📱 Method 1: From Inside the App (Recommended)</h2>
+      <ol class="steps">
+        <li>Open the <strong>Daleel Dhi Qar</strong> app</li>
+        <li>Go to the <strong>Settings</strong> tab (gear icon at the bottom of the screen)</li>
+        <li>Scroll down to find the <strong>"Delete Account"</strong> button in red</li>
+        <li>Tap the button and confirm your deletion request</li>
+        <li>Your account and all data will be immediately deleted and you will be signed out</li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h2>📧 Method 2: Contact Us</h2>
+      <p>If you cannot access the app, you can request account deletion via <strong>Settings → Contact Us</strong> inside the app, or through the contact channels listed in settings.</p>
+      <p>Please include the <strong>email address linked to your account</strong> in the deletion request. We will process your request within <strong>30 days</strong>.</p>
+    </div>
+
+    <div class="card">
+      <h2>🗂️ Data That Will Be Deleted</h2>
+      <p>When you delete your account, the following is permanently removed:</p>
+      <ul class="data-list">
+        <li>🙍 Profile information</li>
+        <li>📧 Email address</li>
+        <li>📱 Phone number</li>
+        <li>🖼️ Profile photo</li>
+        <li>⭐ Favorites list</li>
+        <li>🔔 Notification token (FCM)</li>
+        <li>📝 Reviews and ratings</li>
+        <li>🏢 Published service listings</li>
+      </ul>
+      <div class="note">
+        📌 Reviews and ratings may be retained in anonymized form for statistical purposes.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>↩️ Can I Undo This?</h2>
+      <p>
+        Account deletion is <strong>permanent and irreversible</strong>. Your data cannot be recovered after deletion.
+        If you just want to take a break from the app, you can simply log out without deleting your account.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 دليل ذي قار · Daleel Dhi Qar · GiTech · جميع الحقوق محفوظة</p>
+  <p style="margin-top:6px"><a href="privacy-policy.html" style="color:#1a56db">سياسة الخصوصية | Privacy Policy</a></p>
+</footer>
+
+<script>
+  function switchLang(lang, btn) {
+    document.querySelectorAll('.content-section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.lang-tabs button').forEach(b => b.classList.remove('active'));
+    document.getElementById(lang).classList.add('active');
+    btn.classList.add('active');
+    document.documentElement.setAttribute('lang', lang);
+    document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+  }
+</script>
+
+</body>
+</html>

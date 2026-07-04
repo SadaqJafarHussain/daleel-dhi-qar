@@ -178,6 +178,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onTap: () => showLogoutDialog(context),
               ),
 
+              // Delete Account Button (only show if logged in)
+              if (authProvider.user != null) ...[
+                SizedBox(height: h * 0.01),
+                _buildDeleteAccountButton(context, loc, w, h),
+              ],
+
               SizedBox(height: h * 0.05),
             ],
           ),
@@ -187,6 +193,59 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// Build professional notification toggle with loading state
+  Widget _buildDeleteAccountButton(
+    BuildContext context,
+    AppLocalizations loc,
+    double w,
+    double h,
+  ) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: w * 0.04, vertical: h * 0.005),
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => _showDeleteAccountDialog(context, loc),
+        icon: const Icon(Icons.delete_forever_outlined, color: Colors.red),
+        label: Text(
+          loc.t('delete_account'),
+          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
+        ),
+        style: OutlinedButton.styleFrom(
+          side: const BorderSide(color: Colors.red),
+          padding: EdgeInsets.symmetric(vertical: h * 0.018),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDeleteAccountDialog(BuildContext context, AppLocalizations loc) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(loc.t('delete_account'), style: const TextStyle(color: Colors.red)),
+        content: Text(loc.t('delete_account_confirm')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(loc.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(loc.t('delete'), style: const TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.deleteAccount();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(success ? loc.t('delete_account_success') : loc.t('delete_account_error')),
+      backgroundColor: success ? Colors.green : Colors.red,
+    ));
+  }
+
   Widget _buildNotificationToggle(
     BuildContext context,
     NotificationProvider notificationProvider,

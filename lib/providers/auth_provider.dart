@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent;
+import 'package:supabase_flutter/supabase_flutter.dart' show AuthChangeEvent, Supabase;
 import '../models/user_model.dart';
 import '../services/supabase_auth_service.dart';
 import '../services/connectivity_service.dart';
@@ -205,6 +205,27 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     await Future.delayed(const Duration(milliseconds: 100));
+  }
+
+  // =========================================================
+  // Delete Account
+  // =========================================================
+  Future<bool> deleteAccount() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      await Supabase.instance.client.rpc('delete_my_account');
+      await clearSession();
+      _errorMessage = null;
+      return true;
+    } catch (e) {
+      debugPrint('AuthProvider: deleteAccount error: $e');
+      _errorMessage = e.toString();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   // =========================================================
